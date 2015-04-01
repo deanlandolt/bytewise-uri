@@ -203,7 +203,7 @@ deepEq(key`/a/${ 0 }/${ new Date('2000') }`, [ 'a', 0, new Date('2000') ] }
 
 // String variables will be URI encoded automatically:
 
-eq(key`/b/${ 'C/d@e.f%G' }/h` }, [ /b/C%2Fd%40e.f%25G/h ])
+eq(key`/b/${ 'C/d@e.f%G' }/h` }, [ '/b/C%2Fd%40e.f%25G/h' ])
 
 // Array variables will also be correctly encoded:
 
