@@ -164,7 +164,9 @@ tmpl = key('/foo/{},{}/{ a }/bar')
 
 eq(tmpl([ 'z', [ 'y' }, { x: 1 } ]).uri, '/foo/z,(y,)/x=1,/bar')
 
-// Or a mix of both may be used. Also note that that not all variables have to be populated at once -- any unbound variables carry over to the newly generated uri instance.
+// Or a mix of both may be used, as shown below.
+
+Also note that that not all variables have to be populated at once -- any unbound variables carry over to the newly generated uri instance:
 
 eq(tmpl({ a: 'AAA', 0: null }).uri, '/foo/null:,{}/AAA/bar')
 
@@ -179,9 +181,11 @@ tmpl = key('/foo/{ string:someVar },baz')
 eq(tmpl({ someVar: 'bar' }).uri, '/foo/bar/baz')
 throws(() => tmpl({ someVar: 123 }))
 throws(() => tmpl([ new Date() ]))
+```
 
 // Template variables can be used anywhere you might expect to be able to use parentheses to form a group. Attempting to use a template variable to represent only a portion of a given path component will result in an exception:
 
+```js
 throws(() => key('/foo/bar/{ badVar }:baz/quux'))
 throws(() => key('/foo/bar/baz:{ badVar }/quux'))
 throws(() => key('/foo/bar/baz/{ badVar }+/quux'))
@@ -217,15 +221,15 @@ deepEq(k.valueOf(), ex)
 ex = [ 'a/B', [ 'null:', [ [], true ] ], -Infinity ]
 k = key`/${ ex }/a/string:a@b.com`
 eq(k.uri, '/A%2FB,(null%3A,(array:,true:)),-Infinity+)/a/a%40b.com')
-deepEqual(k.valueOf(), ex)
+deepEq(k.valueOf(), ex)
 
 // With objects too:
 
 ex = { foo: true, baz: [ '', {}, 0, { a: 1 } ], bar: '0' }
 k = key`/${ ex }/s`
 eq(k.uri, '/foo=true:,baz=(string:,0+,object:,(a=1;)),bar=0')
-deepEqual(k.valueOf(), ex)
-
-// String template interpolations are escaped using the underlying templating functinoality of the system. As part of the interpolation process, an intermediate template is created with specially-keyed variables. By reusing the underlying templating system each of these variables will have the context necessary. This is captured by the parser when parsing values with template bindiings, allowing for these urls to be a safe and efficient way to reference key ranges.
-
+deepEq(k.valueOf(), ex)
 ```
+
+String template interpolations are escaped using the underlying templating functinoality of the system. As part of the interpolation process, an intermediate template is created with specially-keyed variables. By reusing the underlying templating system each of these variables will have the context necessary. This is captured by the parser when parsing values with template bindiings, allowing for these urls to be a safe and efficient way to reference key ranges.
+
