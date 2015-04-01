@@ -1,0 +1,33 @@
+{
+  "name": "bytewise-uri",
+  "version": "0.1.0",
+  "description": "URI encoding scheme for bytewise key paths",
+  "main": "index.js",
+  "dependencies": {
+    "bytewise-core": "https://github.com/deanlandolt/bytewise-core/tarball/master"
+  },
+  "devDependencies": {
+    "pegjs": "^0.8.0"
+  },
+  "scripts": {
+    "test": "node test",
+    "build-parser": "node_modules/.bin/pegjs parser.pegjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deanlandolt/bytewise-uri.git"
+  },
+  "keywords": [
+    "bytewise",
+    "uri",
+    "key",
+    "paths",
+    "tuplespace"
+  ],
+  "author": "Dean Landolt <dean@deanlandolt.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/deanlandolt/bytewise-uri/issues"
+  },
+  "homepage": "https://github.com/deanlandolt/bytewise-uri"
+}
