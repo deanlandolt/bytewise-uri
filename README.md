@@ -8,8 +8,7 @@ var key = require('./')
 var assert = require('assert')
 
 function eq(uri, expected) {
-  var result = key(uri)
-  assert.deepEqual(result.valueOf(), expected)
+  assert.deepEqual(key(uri).valueOf(), expected)
 }
 
 
