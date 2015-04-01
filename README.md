@@ -98,7 +98,8 @@ eq('2008-10-01@', new Date('2008-10-01'))
 
 // eq(uri('date::now').toString(), Date.now().toString())
 
-// We may also find reasons to borrow semantics from the [ES function bind syntax proposal](https://github.com/zenparsing/es-function-bind)
+// We may also find reasons to borrow semantics from the [ES function bind syntax proposal]
+// (https://github.com/zenparsing/es-function-bind)
 
 
 // ## arrays
