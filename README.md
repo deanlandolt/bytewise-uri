@@ -210,7 +210,7 @@ eq(key`/b/${ 'C/d@e.f%G' }/h` }, [ '/b/C%2Fd%40e.f%25G/h' ])
 ex = [ 'c/d', false, 'null:', 20*-3 ]
 k = key`/a/b/${ ex }`
 eq(k.uri, '/a/b/c%Fd,false:,null%3A,-60+')
-deepEq(k`.valueOf(), ex)
+deepEq(k.valueOf(), ex)
 
 // Even deeply nested arrays:
 
