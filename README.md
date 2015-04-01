@@ -1,7 +1,12 @@
 # bytewise-uri
 
-URI encoding scheme for bytewise key paths
+This library implementats URI encoding scheme for tersely encoding bytewise key paths as URIs. Legitibility is optimized for the most common types used in keys -- strings, numbers, and top level arrays. If you generally stick to these types your key paths should look fairly elegant.
 
+This library also aims to embed as much of bytewise encoding capabilities into these URIs, so bear that in mind when reading the examples below. When designing keyspaces, the most important factor is that you are able to fully comprehend sort semantics of your various keys and queries over necessary key ranges.
+
+`bytewise` makes this possible by eliminating the many subtle edge cases that crop up when using less formal approaches to defining your indexes. `bytewise-uri` can help further by providing abstractions for some of the common things people need when working with keyspaces. But `bytewise` isn't strictly about keyspaces -- it's a general purpose binary encoding and related type system with a number of interesting and novel properties. But just because you *can* do something doesn't mean you *should*! Go ahead and use as much of `bytewise` as you need, but no more.
+
+Here's how various types are encoded in `bytewise-uri` strings:
 
 ```js
 var key = require('./')
