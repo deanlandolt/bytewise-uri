@@ -136,6 +136,7 @@ ex = [ 'a', [ 'b', [ null, 'c', 'd', null ], '', 'baz' ], [ 'z' ] ]
 pathEq('/a/(b,(null:,c,d,null:),string:,baz)/z,', ex)
 ```
 
+
 ## Queries
 
 TODO: subpath indexes, intervals, ranges w/ stepping
@@ -171,7 +172,7 @@ eq(tmpl({ a: 'AAA', 0: null }).uri, '/foo/null:,{}/AAA/bar')
 
 eq(tmpl.uri = path('/foo/{},{}/{ a }/bar')
 
-// Template variables can also be given a type annotation to constraint the range of legal values that it may be bound to:
+// Template variables can also be given a type annotation to constrain the range of legal values that it may be bound to:
 
 tmpl = path('/foo/{ string:someVar },baz')
 eq(tmpl({ someVar: 'bar' }).uri, '/foo/bar/baz')
