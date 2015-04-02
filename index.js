@@ -9,7 +9,7 @@ function Key(uri) {
 }
 
 Key.prototype.valueOf = function () {
-  return this._parsed;
+  return this._parsed.value;
 }
 
 Key.prototype.encode = function () {

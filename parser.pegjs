@@ -1,5 +1,9 @@
 {
-  // var base = require('base')
+  var codecs
+  try {
+    codecs = require('bytewise-core/util/codecs')
+  }
+  catch(e) {}
 }
 
 
@@ -73,14 +77,9 @@ COMPONENT_CHAR
   = UNRESERVED_CHAR
   / PCT_ENCODED_CHAR
 
-PATH_CHAR
-  = COMPONENT_CHAR
-  / SUB_DELIM_CHAR
-  / [:@]
-
 CTOR_BODY_CHAR
   = COMPONENT_CHAR
-  / [@:+]
+  / [@+]
 
 S
   = ' '
@@ -134,10 +133,10 @@ VARIABLE_LEXICAL
   / id:VARIABLE_IDENT { return [ id ] }
 
 VARIABLE_PREFIX
-  = str:$(COMPONENT_CHAR+) { return str }
+  = c:COMPONENT_CHAR+ { return c.join('') }
 
 VARIABLE_IDENT
-  = str:$(COMPONENT_CHAR*) { return str }
+  = c:COMPONENT_CHAR* { return c.join('') }
 
 
 BOOLEAN_COMPONENT 'a boolean'
@@ -154,7 +153,10 @@ UNDEFINED_COMPONENT 'undefined'
 
 
 BINARY_COMPONENT 'binary data'
-  = 'binary:' str:$(HEX_DIGIT*) { return str; bops.from(str, 'hex') }
+  = 'binary:' c:HEX_DIGIT* {
+      var str = c.join('')
+      return codecs ? codecs.HEX.encode(str) : ('BINARY::' + str)
+    }
 
 
 STRING_COMPONENT 'a string'
@@ -162,10 +164,10 @@ STRING_COMPONENT 'a string'
   / STRING_LITERAL
 
 STRING_LITERAL
-  = str:$(COMPONENT_CHAR+) { return str }
+  = c:COMPONENT_CHAR+ { return c.join('') }
 
 STRING_CTOR
- = 'string:' str:$(CTOR_BODY_CHAR*) { return str }
+ = 'string:' c:CTOR_BODY_CHAR* { return c.join('') }
 
 
 NUMBER_COMPONENT 'a number'
@@ -212,6 +214,7 @@ DATE_LEXICAL
 DATE_LEXICAL_ISO
   = DATE_TIME
   / DATE
+  / DATE_FULLYEAR
 
 
 ARRAY_COMPONENT_EMPTY 'an empty array'
@@ -223,19 +226,17 @@ ARRAY_COMPONENT 'an array'
 
 ARRAY_CTOR
   = 'array:' v:ARRAY_LITERAL { return v }
+  / 'array:' head:UNARY_COMPONENT { return [ head ] }
 
 ARRAY_LITERAL
-  = head:ARRAY_ELEMENT tail:ARRAY_NEXT_PART+ ','? {
+  = head:UNARY_COMPONENT tail:ARRAY_NEXT_PART+ ','? {
       tail.unshift(head)
       return tail
     }
-  / head:ARRAY_ELEMENT ','? { return [ head ] }
+  / head:UNARY_COMPONENT ',' { return [ head ] }
 
 ARRAY_NEXT_PART
-  = v:ARRAY_ELEMENT ',' { return v }
-
-ARRAY_ELEMENT
-  = UNARY_COMPONENT
+  = ',' v:UNARY_COMPONENT { return v }
 
 
 OBJECT_COMPONENT_EMPTY 'an empty object'
