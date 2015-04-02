@@ -1,20 +1,21 @@
 {
-  // var bytewise = require('bytewise-core')
+  // var base = require('base')
 }
 
 
 START
-  = value:PATH { return value }
-  / value:PATH_COMPONENT { return value }
+  = value:INDEX_PATH { return { type: 'index', value: value } }
+  / value:KEY_PATH { return { type: 'key', value: value } }
+  / value:COMPONENT { return { type: 'component', value: value } }
 
-PATH_INDEX
-  = PATH PATH_SEP
+INDEX_PATH
+  = parts:KEY_PATH PATH_SEP { return parts }
 
-PATH
+KEY_PATH
   = parts:PATH_PART+ { return parts }
 
 PATH_PART
-  = PATH_SEP value:PATH_COMPONENT { return value }
+  = PATH_SEP part:COMPONENT { return part }
 
 PATH_SEP
   = '/'
@@ -77,39 +78,71 @@ PATH_CHAR
   / SUB_DELIM_CHAR
   / [:@]
 
-CTOR_CHAR
+CTOR_BODY_CHAR
   = COMPONENT_CHAR
   / [@:+]
 
+S
+  = ' '
 
-PATH_COMPONENT
+
+COMPONENT
   = VARIADIC_COMPONENT
   / UNARY_COMPONENT
 
 VARIADIC_COMPONENT
   = ARRAY_COMPONENT
+  / OBJECT_COMPONENT
 
 UNARY_COMPONENT
-  = GROUP_COMPONENT
+  = NULLARY_COMPONENT
+  / GROUP_COMPONENT
+  / VARIABLE_COMPONENT
+  / NUMBER_COMPONENT
+  / DATE_COMPONENT
+  / BINARY_COMPONENT
+  / STRING_COMPONENT
+
+NULLARY_COMPONENT
+  = ARRAY_COMPONENT_EMPTY
+  / OBJECT_COMPONENT_EMPTY
   / BOOLEAN_COMPONENT
   / NULL_COMPONENT
   / UNDEFINED_COMPONENT
-  / NUMBER_COMPONENT
-  / DATE_COMPONENT
-  / STRING_COMPONENT
 
 
 GROUP_COMPONENT 'a group'
-  = '(' val:PATH_COMPONENT ')' { return val }
+  = '(' val:VARIADIC_COMPONENT ')' { return val }
+  / '(' val:UNARY_COMPONENT ')' { return [ val ] }
+  / '()' { return [] }
 
 
-BOOLEAN_COMPONENT 'true'
+VARIABLE_COMPONENT 'a template variable'
+  = '{' S* config:VARIABLE_LEXICAL S* '}' {
+      // TODO:
+      // keep a count of sequential of placeholders
+      // keep track of whether we're nested or in the top level
+      // do something less shitty, e.g. use a sigil object from typewise
+      return {
+        $placeholder: config[0],
+        $prefix: config[1] || ''
+      }
+    }
+
+VARIABLE_LEXICAL
+  = prefix:VARIABLE_PREFIX ':' id:VARIABLE_IDENT { return [ id, prefix ] }
+  / id:VARIABLE_IDENT { return [ id ] }
+
+VARIABLE_PREFIX
+  = str:$(COMPONENT_CHAR+) { return str }
+
+VARIABLE_IDENT
+  = str:$(COMPONENT_CHAR*) { return str }
+
+
+BOOLEAN_COMPONENT 'a boolean'
   = 'true:' { return true }
   / 'false:' { return false }
-
-
-FALSE_COMPONENT 'false'
-  = 'false:' { return false }
 
 
 NULL_COMPONENT 'null'
@@ -120,15 +153,19 @@ UNDEFINED_COMPONENT 'undefined'
   = 'undefined:' { return }
 
 
+BINARY_COMPONENT 'binary data'
+  = 'binary:' str:$(HEX_DIGIT*) { return str; bops.from(str, 'hex') }
+
+
 STRING_COMPONENT 'a string'
   = STRING_CTOR
   / STRING_LITERAL
 
 STRING_LITERAL
-  = chars:COMPONENT_CHAR+ { return chars.join('') }
+  = str:$(COMPONENT_CHAR+) { return str }
 
 STRING_CTOR
- = 'string:' chars:CTOR_CHAR* { return chars.join('') }
+ = 'string:' str:$(CTOR_BODY_CHAR*) { return str }
 
 
 NUMBER_COMPONENT 'a number'
@@ -145,8 +182,6 @@ NUMBER_LEXICAL_EXTENDED
 NUMBER_LEXICAL_BASE
   = str:$(
       '0' [xX] HEX_DIGIT+
-    / '0' [oO] str:OCTAL_DIGIT+ { return parseInt(str.join(''), 8) }
-    / '0' [bB] str:BINARY_DIGIT+ { return parseInt(str.join(''), 2) }
     /  '-'? 'Infinity'
     / INTEGER FRACTION EXPONENT
     / INTEGER FRACTION
@@ -158,12 +193,6 @@ NUMBER_CTOR
   = 'number:' val:NUMBER_LEXICAL { return val }
 
 NUMBER_LITERAL
-  = vals:NUMBER_LITERAL_PART+ tail:NUMBER_LEXICAL? {
-    vals.push(tail || 0)
-    return vals.reduce(function (a, b) { return a + b  })
-  }
-
-NUMBER_LITERAL_PART
   = val:NUMBER_LEXICAL '+' { return val }
 
 
@@ -185,28 +214,59 @@ DATE_LEXICAL_ISO
   / DATE
 
 
+ARRAY_COMPONENT_EMPTY 'an empty array'
+  = 'array:' { return [] }
 
-
-
-ARRAY_COMPONENT
+ARRAY_COMPONENT 'an array'
   = ARRAY_CTOR
   / ARRAY_LITERAL
 
 ARRAY_CTOR
-  = 'array:' val:ARRAY_LITERAL { return val }
-  / 'array:' val:UNARY_COMPONENT { return [ val ] }
-  / 'array:' { return [] }
+  = 'array:' v:ARRAY_LITERAL { return v }
 
 ARRAY_LITERAL
-  = vals:ARRAY_LITERAL_PART+ tail:UNARY_COMPONENT {
-      vals.push(tail)
-      return vals
+  = head:ARRAY_ELEMENT tail:ARRAY_NEXT_PART+ ','? {
+      tail.unshift(head)
+      return tail
     }
-  / vals:ARRAY_LITERAL_PART+ { return vals }
+  / head:ARRAY_ELEMENT ','? { return [ head ] }
 
-ARRAY_LITERAL_PART
-  = val:UNARY_COMPONENT ',' { return val }
+ARRAY_NEXT_PART
+  = v:ARRAY_ELEMENT ',' { return v }
 
+ARRAY_ELEMENT
+  = UNARY_COMPONENT
+
+
+OBJECT_COMPONENT_EMPTY 'an empty object'
+  = 'object:' { return {} }
+
+OBJECT_COMPONENT 'an object'
+  = kvs:( OBJECT_CTOR / OBJECT_LITERAL ) {
+    var obj = {}
+    for (var i = 0, length = kvs.length; i < length; ++i) {
+      var kv = kvs[i]
+      obj[kv[0]] = kv[1]
+    }
+    return obj
+  }
+
+OBJECT_CTOR
+  = 'object:' kvs:OBJECT_LITERAL { return kvs }
+
+OBJECT_LITERAL
+  = head:OBJECT_ELEMENT tail:OBJECT_NEXT_PART+ ','? {
+      tail.unshift(head)
+      return tail
+    }
+  / head:OBJECT_ELEMENT ','? { return [ head ] }
+
+
+OBJECT_NEXT_PART
+  = ',' kv:OBJECT_ELEMENT { return kv }
+
+OBJECT_ELEMENT
+  = k:STRING_COMPONENT '=' v:UNARY_COMPONENT { return [ k, v ] }
 
 /*
   ISO 8601 parser adapted from:
@@ -226,201 +286,201 @@ ARRAY_LITERAL_PART
  /* Date */
 
  DATE
-   = datespec_full
-   / datespec_year
-   / datespec_month
-   / datespec_mday
-   / datespec_week
-   / datespec_wday
-   / datespec_yday
+   = DATESPEC_FULL
+   / DATESPEC_YEAR
+   / DATESPEC_MONTH
+   / DATESPEC_MDAY
+   / DATESPEC_WEEK
+   / DATESPEC_WDAY
+   / DATESPEC_YDAY
 
  TIME
-   = timespec_base time_fraction? time_zone?
+   = TIMESPEC_BASE TIME_FRACTION? TIME_ZONE?
 
  DATE_TIME
    = DATE 'T' TIME
 
- date_century
+ DATE_CENTURY
    // 00-99
    = $(DIGIT DIGIT)
 
- date_decade
+ DATE_DECADE
    // 0-9
    = DIGIT
 
- date_subdecade
+ DATE_SUBDECADE
    // 0-9
    = DIGIT
 
- date_year
-   = date_decade date_subdecade
+ DATE_YEAR
+   = DATE_DECADE DATE_SUBDECADE
 
- date_fullyear
-   = date_century date_year
+ DATE_FULLYEAR
+   = DATE_CENTURY DATE_YEAR
 
- date_month
+ DATE_MONTH
    // 01-12
    = $(DIGIT DIGIT)
 
- date_wday
+ DATE_WDAY
    // 1-7
    // 1 is Monday, 7 is Sunday
    = DIGIT
 
- date_mday
+ DATE_MDAY
    // 01-28, 01-29, 01-30, 01-31 based on
    // month/year
    = $(DIGIT DIGIT)
 
- date_yday
+ DATE_YDAY
    // 001-365, 001-366 based on year
    = $(DIGIT DIGIT DIGIT)
 
- date_week
+ DATE_WEEK
    // 01-52, 01-53 based on year
    = $(DIGIT DIGIT)
 
- datepart_fullyear
-   = date_century? date_year '-'?
+ DATEPART_FULLYEAR
+   = DATE_CENTURY? DATE_YEAR '-'?
 
- datepart_ptyear
-   = '-' (date_subdecade '-'?)?
+ DATEPART_PTYEAR
+   = '-' (DATE_SUBDECADE '-'?)?
 
- datepart_wkyear
-   = datepart_ptyear
-   / datepart_fullyear
+ DATEPART_WKYEAR
+   = DATEPART_PTYEAR
+   / DATEPART_FULLYEAR
 
- dateopt_century
+ DATEOPT_CENTURY
    = '-'
-   / date_century
+   / DATE_CENTURY
 
- dateopt_fullyear
+ DATEOPT_FULLYEAR
    = '-'
-   / datepart_fullyear
+   / DATEPART_FULLYEAR
 
- dateopt_year
+ DATEOPT_YEAR
    = '-'
-   / date_year '-'?
+   / DATE_YEAR '-'?
 
- dateopt_month
+ DATEOPT_MONTH
    = '-'
-   / date_month '-'?
+   / DATE_MONTH '-'?
 
- dateopt_week
+ DATEOPT_YEAR
    = '-'
-   / date_week '-'?
+   / DATE_WEEK '-'?
 
- datespec_full
-   = datepart_fullyear date_month '-'? date_mday
+ DATESPEC_FULL
+   = DATEPART_FULLYEAR DATE_MONTH '-'? DATE_MDAY
 
- datespec_year
-   = date_century
-   / dateopt_century date_year
+ DATESPEC_YEAR
+   = DATE_CENTURY
+   / DATEOPT_CENTURY DATE_YEAR
 
- datespec_month
-   = '-' dateopt_year date_month ('-'? date_mday)
+ DATESPEC_MONTH
+   = '-' DATEOPT_YEAR DATE_MONTH ('-'? DATE_MDAY)
 
- datespec_mday
-   = "--" dateopt_month date_mday
+ DATESPEC_MDAY
+   = "--" DATEOPT_MONTH DATE_MDAY
 
- datespec_week
-   = datepart_wkyear "W" (date_week / dateopt_week date_wday)
+ DATESPEC_WEEK
+   = DATEPART_WKYEAR "W" (DATE_WEEK / DATEOPT_YEAR DATE_WDAY)
 
- datespec_wday
-   = "---" date_wday
+ DATESPEC_WDAY
+   = "---" DATE_WDAY
 
- datespec_yday
-   = dateopt_fullyear date_yday
+ DATESPEC_YDAY
+   = DATEOPT_FULLYEAR DATE_YDAY
 
 
  /* Time */
- time_hour
+ TIME_HOUR
    // 00-24
    = $(DIGIT DIGIT)
 
- time_minute
+ TIME_MINUTE
    // 00-59
    = $(DIGIT DIGIT)
 
- time_second
+ TIME_SECOND
    // 00-58, 00-59, 00-60 based on
    // leap-second rules
    = $(DIGIT DIGIT)
 
- time_fraction
+ TIME_FRACTION
    = ("," / ".") $(DIGIT+)
 
- time_numoffset
-   = ("+" / '-') time_hour (":"? time_minute)?
+ TIME_NUMOFFSET
+   = ("+" / '-') TIME_HOUR (":"? TIME_MINUTE)?
 
- time_zone
+ TIME_ZONE
    = "Z"
-   / time_numoffset
+   / TIME_NUMOFFSET
 
- timeopt_hour
+ TIMEOPT_HOUR
    = '-'
-   / time_hour ":"?
+   / TIME_HOUR ":"?
 
- timeopt_minute
+ TIMEOPT_MINUTE
    = '-'
-   / time_minute ":"?
+   / TIME_MINUTE ":"?
 
- timespec_hour
-   = time_hour (":"? time_minute (":"? time_second)?)?
+ TIMESPEC_HOUR
+   = TIME_HOUR (":"? TIME_MINUTE (":"? TIME_SECOND)?)?
 
- timespec_minute
-   = timeopt_hour time_minute (":"? time_second)?
+ TIMESPEC_MINUTE
+   = TIMEOPT_HOUR TIME_MINUTE (":"? TIME_SECOND)?
 
- timespec_second
-   = '-' timeopt_minute time_second
+ TIMESPEC_SECOND
+   = '-' TIMEOPT_MINUTE TIME_SECOND
 
- timespec_base
-   = timespec_hour
-   / timespec_minute
-   / timespec_second
+ TIMESPEC_BASE
+   = TIMESPEC_HOUR
+   / TIMESPEC_MINUTE
+   / TIMESPEC_SECOND
 
 
  /* Durations */
- dur_second
+ DUR_SECOND
    = DIGIT+ "S"
 
- dur_minute
-   = DIGIT+ "M" dur_second?
+ DUR_MINUTE
+   = DIGIT+ "M" DUR_SECOND?
 
- dur_hour
-   = DIGIT+ "H" dur_minute?
+ DUR_HOUR
+   = DIGIT+ "H" DUR_MINUTE?
 
- dur_time
-   = "T" (dur_hour / dur_minute / dur_second)
+ DUR_TIME
+   = "T" (DUR_HOUR / DUR_MINUTE / DUR_SECOND)
 
- dur_day
+ DUR_DAY
    = DIGIT+ "D"
- dur_week
+ DUR_WEEK
    = DIGIT+ "W"
- dur_month
-   = DIGIT+ "M" dur_day?
+ DUR_MONTH
+   = DIGIT+ "M" DUR_DAY?
 
- dur_year
-   = DIGIT+ "Y" dur_month?
+ DUR_YEAR
+   = DIGIT+ "Y" DUR_MONTH?
 
- dur_date
-   = (dur_day / dur_month / dur_year) dur_time?
+ DUR_DATE
+   = (DUR_DAY / DUR_MONTH / DUR_YEAR) DUR_TIME?
 
- duration
-   = "P" (dur_date / dur_time / dur_week)
+ DURATION
+   = "P" (DUR_DATE / DUR_TIME / DUR_WEEK)
 
 
  /* Periods */
- period_explicit
+ PERIOD_EXPLICIT
    = DATE_TIME "/" DATE_TIME
 
- period_start
-   = DATE_TIME "/" duration
+ PERIOD_START
+   = DATE_TIME "/" DURATION
 
- period_end
-   = duration "/" DATE_TIME
+ PERIOD_END
+   = DURATION "/" DATE_TIME
 
- period
-   = period_explicit
-   / period_start
-   / period_end
+ PERIOD
+   = PERIOD_EXPLICIT
+   / PERIOD_START
+   / PERIOD_END
