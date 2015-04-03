@@ -356,40 +356,40 @@ deepEq(path`/true:/foo/null:`.data, [ true, 'foo', null ])
 Interpolated variables will be strongly typed when encoded:
 
 ```js
-deepEq(path`/a/${ 0 }/${ new Date('2000') }`, [ 'a', 0, new Date('2000') ] }
+deepEq(path`/a/${ 0 }/${ new Date('2000') }`.data, [ 'a', 0, new Date('2000') ] }
 ```
 
 String variables will be URI encoded automatically:
 
 ```js
-eq(path`/b/${ 'C/d@e.f%G' }/h` }, [ '/b/C%2Fd%40e.f%25G/h' ])
+eq(path`/b/${ 'C/d@e.f%G' }/h' }`.data, [ '/b/C%2Fd%40e.f%25G/h' ])
 ```
 
 Array variables will also be correctly encoded:
 
 ```js
-ex = [ 'c/d', false, 'null:', 20*-3 ]
-k = path`/a/b/${ ex }`
-eq(k.uri, '/a/b/c%Fd,false:,null%3A,-60+')
-deepEq(k.data, ex)
+data = [ 'c/d', false, 'null:', 20*-3 ]
+key = path`/a/b/${ ex }`
+eq(key.uri, '/a/b/c%Fd,false:,null%3A,-60+')
+deepEq(k.data, data)
 ```
 
 Even deeply nested arrays:
 
 ```js
-ex = [ 'a/B', [ 'null:', [ [], true ] ], -Infinity ]
-k = path`/${ ex }/a/string:a@b.com`
-eq(k.uri, '/A%2FB,(null%3A,(array:,true:)),-Infinity+)/a/a%40b.com')
-deepEq(k.data, ex)
+data = [ 'a/B', [ 'null:', [ [], true ] ], -Infinity ]
+key = path`/${ data }/a/string:a@b.com`
+eq(key.uri, '/A%2FB,(null%3A,(array:,true:)),-Infinity+)/a/a%40b.com')
+deepEq(key.data, data)
 ```
 
 This works with objects too:
 
 ```js
-ex = { foo: true, baz: [ '', {}, 0, { a: 1 } ], bar: '0' }
-k = path`/${ ex }/s`
-eq(k.uri, '/foo=true:,baz=(string:,0+,object:,(a=1)),bar=0')
-deepEq(k.data, ex)
+data = { foo: true, baz: [ '', {}, 0, { a: 1 } ], bar: '0' }
+key = path`/${ data }/s`
+eq(key.uri, '/foo=true:,baz=(string:,0+,object:,(a=1)),bar=0')
+deepEq(key.data, data)
 ```
 
 String template interpolations are escaped using the underlying templating functionality of the system. As part of the interpolation process, an intermediate template is created with specially-keyed variables.
