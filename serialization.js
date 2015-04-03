@@ -60,8 +60,10 @@ exports.parse = function (string) {
 
 
 
-// `parse` method is always invoked on values starting with a `<prefix>:` value
-// may be skipped bypassed by parser for literal forms parser has syntax for
+// `parse` method invoked with string values following a `<prefix>:`
+
+// `revive` method invoked with structured data from literal syntactic forms
+
 // `stringify` invoked for serializing all values
 // this method is responsible for doing type annotations and escapement
 
@@ -77,7 +79,7 @@ var registerNullary = function (name, sort) {
   types[name] = {
     sort: sort,
     parse: function (string) {
-      assert(string.length === 0, 'Nullary constructor should be empty')
+      assert.equal(string.length, 0, 'Nullary constructor should be empty')
       return sort.value
     },
     stringify: function (instance) {
@@ -96,12 +98,12 @@ function encodeComponent(str) {
   });
 }
 
-//
-// base sorts
-//
 var sorts = base.sorts
 var types = exports.types = {}
 
+//
+// register base types
+//
 
 registerNullary('undefined', sorts.UNDEFINED)
 registerNullary('null', sorts.NULL)
@@ -180,10 +182,20 @@ types.array = {
 }
 
 //
-// no `parse` method so no `object:...` constructor form
+
 //
 types.object = {
   sort: sorts.OBJECT,
+  //
+  // no `parse` method so no `object:...` constructor form
+  //
+  revive: function (tuples) {
+    var value = {}
+    tuples.forEach(function (tuple) {
+      value[tuple[0]] = tuple[1]
+    })
+    return value
+  },
   stringify: function (instance, nested) {
     var records = []
     for (var key in instance)
@@ -196,6 +208,19 @@ types.object = {
       return 'object:'
 
     return records.join(',')
+
+  }
+}
+
+//
+// ranges
+//
+types['*'] = {
+  // sort: base.types.RANGE,
+  parse: function (string) {
+
+  },
+  stringify: function (instance) {
 
   }
 }
