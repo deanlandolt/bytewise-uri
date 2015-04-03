@@ -1,15 +1,15 @@
 var bytewise = require('bytewise-core')
 var parser = require('./parser')
 
-// TODO: return immutable instance types instead of this temporary hack
-function Key(uri) {
-  if (!(this instanceof Key))
-    return new Key(uri)
+function Path(uri) {
+  if (!(this instanceof Path))
+    return new Path(uri)
 
+  // TODO: parse should return immutable data structures
   this._parsed = parser.parse(this.uri = uri)
 }
 
-Object.defineProperties(Key.prototype, {
+Object.defineProperties(Path.prototype, {
   data: {
     get: function () {
       return this._parsed.value
@@ -33,4 +33,4 @@ Object.defineProperties(Key.prototype, {
   }
 })
 
-module.exports = Key
+module.exports = Path
