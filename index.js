@@ -21,8 +21,14 @@ Object.defineProperties(Key.prototype, {
     }
   },
   toString: {
-    value: function (encoding) {
-      return this.encoded.toString(encoding || 'hex')
+    value: function (codec) {
+      // default to hex to preserve order in case of accidental string coercion
+      return this.encoded.toString(codec || 'hex')
+    }
+  },
+  uri: {
+    get: function () {
+      // TODO: stringify `this.data` back into a uri
     }
   }
 })
