@@ -173,24 +173,24 @@ Binding variables on a template returns a new URI object without mutating the so
 eq(tmpl.uri = path('/foo/{*},{*}/{ a }/bar')
 ```
 
-Template variables can also be given a type annotation to constrain the range of legal values that it may be bound to:
+Template variables can also be given a type annotation to constrain the range of legal values that it may be bound to. Providing out-of-bounds variable bindings results in an empty template:
 
 ```js
-tmpl = path('/foo/{ someVar : number },baz')
+tmpl = path('/foo/{ someVar:number },baz')
 
 eq(tmpl({ someVar: 3 }).uri, '/foo/3+/baz')
 assert.equal(tmpl({ someVar: '3' }), null)
 
 eq(tmpl([ -2.5 }).uri, '/foo/-2.5+/baz')
-throws(() => tmpl([ '-2.5' ]))
+assert.equal(tmpl([ '-2.5' ]), null)
 ```
 
 Template variables can be used anywhere you might expect to be able to use parentheses to form a group. Attempting to use a template variable to represent only a portion of a given path component will result in an exception:
 
 ```js
-throws(() => path('/foo/bar/{ badVar }:baz/quux'))
-throws(() => path('/foo/bar/baz:{ badVar }/quux'))
-throws(() => path('/foo/bar/baz/{ badVar }+/quux'))
+assert.throws(() => path('/foo/bar/{ badVar }:baz/quux'))
+assert.throws(() => path('/foo/bar/baz:{ badVar }/quux'))
+assert.throws(() => path('/foo/bar/baz/{ badVar }+/quux'))
 // etc...
 ```
 
