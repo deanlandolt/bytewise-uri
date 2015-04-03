@@ -4,7 +4,8 @@
   "description": "URI encoding scheme for bytewise key paths",
   "main": "index.js",
   "dependencies": {
-    "bytewise-core": "https://github.com/deanlandolt/bytewise-core/tarball/master"
+    "bytewise-core": "https://github.com/deanlandolt/bytewise-core/tarball/master",
+    "immutable": "^3.7.1"
   },
   "devDependencies": {
     "pegjs": "^0.8.0"

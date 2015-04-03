@@ -137,14 +137,7 @@ pathEq('/a/(b,(null:,c,d,null:),string:,baz)/z,', ex)
 ```
 
 
-## Queries
-
-TODO: subpath indexes, intervals, ranges w/ stepping
-
-
 ## Path templates
-
-TODO
 
 Curly braces can be used to introduce template variables. These create placeholders in specific path components which can later be filled. Variable names can be any valid javascript identifier:
 
@@ -155,7 +148,7 @@ eq(tmpl({ myVar: [ true, 'false' ] }).uri, '/foo/bar/true:,false/baz/quux')
 
 // Template variables may be unnamed:
 
-tmpl = path('/foo/{},{}/{ a }/bar')
+tmpl = path('/foo/{*},{*}/{ a }/bar')
 
 // All template variables (whether named or not), can be bound by position too:
 
@@ -165,19 +158,22 @@ eq(tmpl([ 'z', [ 'y' ], { x: 1 } ]).uri, '/foo/z,(y,)/x=1,/bar')
 
 Also note that that not all variables have to be populated at once -- any unbound variables carry over to the newly generated uri instance:
 
-eq(tmpl({ a: 'AAA', 0: null }).uri, '/foo/null:,{}/AAA/bar')
+eq(tmpl({ a: 'AAA', 0: null }).uri, '/foo/null:,{*}/AAA/bar')
 
 // Binding variables on a template returns a new URI object without mutating the
 // source template:
 
-eq(tmpl.uri = path('/foo/{},{}/{ a }/bar')
+eq(tmpl.uri = path('/foo/{*},{*}/{ a }/bar')
 
 // Template variables can also be given a type annotation to constrain the range of legal values that it may be bound to:
 
-tmpl = path('/foo/{ string:someVar },baz')
-eq(tmpl({ someVar: 'bar' }).uri, '/foo/bar/baz')
-throws(() => tmpl({ someVar: 123 }))
-throws(() => tmpl([ new Date() ]))
+tmpl = path('/foo/{ someVar : number },baz')
+
+eq(tmpl({ someVar: 3 }).uri, '/foo/3+/baz')
+throws(() => tmpl({ someVar: '3' }))
+
+eq(tmpl([ -2.5 }).uri, '/foo/-2.5+/baz')
+throws(() => tmpl([ '-2.5' ]))
 ```
 
 // Template variables can be used anywhere you might expect to be able to use parentheses to form a group. Attempting to use a template variable to represent only a portion of a given path component will result in an exception:
@@ -189,9 +185,95 @@ throws(() => path('/foo/bar/baz/{ badVar }+/quux'))
 // etc...
 ```
 
+## Path templates as queries
+
+Another way of thinking of key range "templates" is as a kind of query. Template variables define the areas of the keyspace a given template can range over. Consider this template:
+
+```js
+path('/foo/{ someVar }')
+```
+
+This would almost correspond to the query:
+
+```js
+{ gte: '/foo/null:', lte: '/foo/undefined:' }
+```
+
+Things can get messy if you're storing things with `undefined` keys (maybe for secondary index reasons, or maybe you're just batshit crazy...). To fix this we define out-of-bounds primitives that can be used in range queries to represent the absolute lower and upper bounds -- `0x00` and `0xFF`, respectively:
+
+This can be thought of as a query that ranges over *any* `foo` value:
+
+```js
+{ gt: '/foo/bottom:', lt: '/foo/top:' }
+```
+
+This is analogous to an `any` type. Thinking of a template as a predicate function, *any* value for `someVar` could be used. But this could be further refined by adding a type declaration to narrow the query space:
+
+```js
+path('/foo/{ someVar : number }')
+```
+
+This would correspond to a query like this:
+
+```js
+{ gte: '/foo/Infinity+:', lte: '/foo/-Infinity+' }
+```
+
+### Ranges as type system
+
+We could allow type annotations to specify arbitrary ranges right inline, reusing our interval notation, whatever we eventually settle on (various ideas kicked around [here](https://gist.github.com/deanlandolt/1522a1126727afbfdd4d).
+
+For example, refining a type to the range of non-negative reals, the interval `0 <= x < Infinity`, might look like this:
+
+```js
+path('/foo/{ someVar : (0+,!Infinity+) }')
+```
+
+The `!` prefix symbolizes exclusive bounds. The positive reals:
+
+```js
+path('/foo/{ someVar : (!0+,!Infinity+) }')
+```
+
+This notation would have a sensible interpretation when used directly in URIs:
+
+```js
+path('/foo/*:(!0+,!Infinity+)')
+```
+
+This would also leave us surface area for additional arguments, like a step param:
+
+```js
+path('/foo/*:(0+,Infinity+,1000+)
+```
+
+This might partition the underlying range in a step-like fashion.
+
+Lots more to say about this, but one way to think of this is as dividing the interval into some partitions of some particular size, or on some predictable (perhaps type-specific) boundary points. A particular reduce mechanism could be specified -- could be some canned ones, could allow reduction functions to be registered somewhere, possibly could define some set of generic monoids and allow reductions to be composed from these.
+
+For example the semantics you might expect from a range `step` function could also be thought of as something like `take(1)`: grab the first record, at most, from each partition. All kinds of generic aggregate operations could be defined like this (or just lifted from SQL). The implementation should be pretty obvious, especially if you bear in mind that `bytewise-uri` is itself an extremely powerful path syntax. While it's primarily designed around the idea of paths in database keyspaces, it can just as easily be used to reference into structed data, like JSON -- or even a superset of JSON, like `bytewise`.
+
+Back to key path queries, this shold also do what you'd expect:
+
+```js
+path('/foo/*:number')
+```
+
+Coming full circle, back to path templates, an unnamed template variable, number-typed:
+
+```js
+path('/foo/{ *:number }')
+```
+
+An unnamed, untyped template variable:
+
+```js
+path('/foo/{ * }')
+
+It all hangs together pretty well.
+
 
 ## Template strings
-TODO
 
 The encoding function can also be used as a template string:
 
@@ -238,5 +320,14 @@ eq(k.uri, '/foo=true:,baz=(string:,0+,object:,(a=1;)),bar=0')
 deepEq(k.valueOf(), ex)
 ```
 
-String template interpolations are escaped using the underlying templating functinoality of the system. As part of the interpolation process, an intermediate template is created with specially-keyed variables. By reusing the underlying templating system each of these variables will have the context necessary. This is captured by the parser when parsing values with template bindiings, allowing for these urls to be a safe and efficient way to reference key path ranges.
+String template interpolations are escaped using the underlying templating functionality of the system. As part of the interpolation process, an intermediate template is created with specially-keyed variables.
+
+Work requierd to do any actual escapement is deferred until an underlying URI string is requested, which may not ever be necessary. By leveraging the underlying templating system allows interpolation to simply replace template object placeholders with provided values. 
+
+
+### Persistent immutable templates
+
+Parsed URIs are backed by persistent immutable data structures. This property allows them to be passed around to untrusted code without fear of mutation, and offers some other interesting security and developer ergonomics benefits. But the performance benefits are even more interesting...
+
+Stamping values in a template is just a matter of replacing variable placeholders with new data. Due to structural sharing, this is an extremely cheap operation. Structural sharing could also drastically improve the performance of encoding. The structures in a template only need to be encoding once, and this data can be shared by all template instances. When encoding an instance, only new data structures must encoded (and only the first time) -- the encoded bytewise values for all existing data structures can be reused. Encoding a bytewise value would mostly consist of copying memory around. For certain usage patterns, e.g. largish templates with smallish variable bindings, encoding performance should be in the ballpark of native JSON, a few orders of magnitude better than vanilla bytewise.
 
