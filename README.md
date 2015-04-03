@@ -284,7 +284,7 @@ To reference all values from, e.g. the `2000` onward, you could conjure up a far
 path('/foo/*:(2000@,*:date)')
 ```
 
-Rather than minting a special `top` and `bottom` type for the `any` type, we can just use `*` without a `:` suffix. On the left side of an interval this means `bottom`, on the right, `top`. To range over all values from the number 0 to `any`:
+And rather than having to mint special `TOP` and `BOTTOM` instances for the `any` type, we can just use the standalone `*` syntax. On the left side of an interval this means `bottom`, on the right, `top`. To range over all values from the number 0 to `TOP`:
 
 ```js
 path('/foo/*:(0+,*)')
@@ -304,7 +304,7 @@ path('/foo/*')
 
 In whatever form, the fact that this is not a simple key (or, a possibly inhabited *instance*), but some kind of query or type definition (these two concepts are deeply related in this syntax, just as they should be -- they are completely equivalent). This is made explicit with the `*` prefix present in these various forms. The intent of the underlying range should be readily apparent to the reader -- readable by humans as well as machines, not just arbitrary "growlix" characters assembled with complex rules. The `*` operator has a coherent meaning in its various forms, and the `!` prefix operator is used only only within interval literals (the parenthetical `*:(x,y)` form), and only to denote exclusive interval bounds.
 
-Coming full circle, back to templates, an unnamed template variable, number-typed:
+Coming full circle, back to templates -- an unnamed template variable, number-typed, might look like this:
 
 ```js
 path('/foo/{ *:number }')
@@ -340,7 +340,9 @@ Again, this could be shortened to:
 path('/foo/{ someVar }')
 ```
 
-It all hangs together nicely.
+It all hangs together nicely. Queries are type defs and vice versa. Defining a template variable just punches a "hole" in the underlying data structure.
+
+In a more formal sense, a template with one variable could be thought of as the first derivative of fully inhabited instances. Templates with two holes are the second-derivative of fully inhabited instances, or the first derivative of any instances with one of its two holes inhabited. As insane as this may sound, [it's true](http://blog.lab49.com/archives/3011).
 
 
 ## Template strings
