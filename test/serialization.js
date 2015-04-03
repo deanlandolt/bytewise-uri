@@ -35,7 +35,9 @@ var deepEq = assert.deepEqual
 ].forEach(function (input) {
   var key1 = uri(input)
 
-  // console.log(input, key1.data, key1.uri)
+  // console.log('input', input)
+  // console.log('data', key1.data)
+  // console.log('uri', key1.uri)
 
   var key2 = uri(key1.uri)
 

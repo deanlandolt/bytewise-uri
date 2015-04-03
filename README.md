@@ -1,6 +1,6 @@
 # bytewise-uri
 
-This library implementats URI encoding scheme for tersely encoding bytewise key paths as URIs. Legitibility is optimized for the most common types used in keys -- strings, numbers, and top level arrays. If you generally stick to these types your key paths should look fairly elegant.
+This library implementats URI encoding scheme for tersely encoding bytewise-serializable data structures as URIs. Legitibility is optimized for the most common types used in keys -- strings, numbers, and top level arrays. If you generally stick to these types your keys should look fairly elegant.
 
 This library also aims to embed as much of bytewise encoding capabilities into these URIs, so bear that in mind when reading the examples below. When designing keyspaces, the most important factor is that you are able to fully comprehend sort semantics of your various keys and queries over necessary key ranges.
 
@@ -9,13 +9,13 @@ This library also aims to embed as much of bytewise encoding capabilities into t
 Here's how various types are encoded in `bytewise-uri` strings:
 
 ```js
-var path = require('./')
+var uri = require('./')
 var assert = require('assert')
 var eq = assert.strictEqual
 var deepEq = assert.deepEqual
 
-function pathEq(uri, expected) {
-  deepEq(path(uri).data, expected)
+function uriEq(uri, expected) {
+  deepEq(uri(uri).data, expected)
 }
 
 // ## primitives
@@ -23,68 +23,68 @@ function pathEq(uri, expected) {
 // The colon denotes a type literal, and can be used to reference primitive
 // types as literals:
 
-pathEq('null:', null)
-pathEq('undefined:', undefined)
-pathEq('true:', true)
-pathEq('false:', false)
+uriEq('null:', null)
+uriEq('undefined:', undefined)
+uriEq('true:', true)
+uriEq('false:', false)
 
 // ## strings
 
-pathEq('string:null', 'null')
+uriEq('string:null', 'null')
 
 // Components that don't include reserve characters are interpreted as strings:
 
-pathEq('null', 'null')
+uriEq('null', 'null')
 
 // Reserved characters in strings must be escaped:
 
-pathEq('null%3A', 'null:')
+uriEq('null%3A', 'null:')
 
 // Using the string constructor syntax allows some otherwise-reserved characters
 // to be used within the constructor's lexical space:
 
-pathEq('string:foo+bar@baz.com', 'foo+bar@baz.com')
+uriEq('string:foo+bar@baz.com', 'foo+bar@baz.com')
 
 // Without the string prefix every reserved character must be escaped:
 
-pathEq('foo%2Bbar%40baz.com', 'foo+bar@baz.com')
+uriEq('foo%2Bbar%40baz.com', 'foo+bar@baz.com')
 
 // Some reserved characters must still be escaped in string-prefixed syntax:
 
-pathEq('string:mailto%3A%2F%2Ffoo+bar@baz.com', 'mailto://foo+bar@baz.com')
+uriEq('string:mailto%3A%2F%2Ffoo+bar@baz.com', 'mailto://foo+bar@baz.com')
 
 // But this isn't much of an improvement over the unprefixed form:
 
-pathEq('mailto%3A%2F%2Ffoo%2Bbar%40baz.com', 'mailto://foo+bar@baz.com')
+uriEq('mailto%3A%2F%2Ffoo%2Bbar%40baz.com', 'mailto://foo+bar@baz.com')
 
 
 // ## binary
 
 // Binary data is also supported:
 
-deepEq(path('binary:deadbeef').data, Buffer('deadbeef', 'hex'))
+deepEq(uri('binary:deadbeef').data, Buffer('deadbeef', 'hex'))
 
 
 // ## numbers
 
 // The number constructor syntax does what you might expect:
 
-pathEq('number:-123.45', -123.45)
+uriEq('number:-123.45', -123.45)
 
 // You can use the other lexical forms availale in ES:
 
-pathEq('number:0x22', 0x22)
-pathEq('number:3.5e-4', 0.00035)
+uriEq('number:0x22', 0x22)
+uriEq('number:3.5e-4', 0.00035)
 
 // Even octal and binary literals from ES6
 
-pathEq('number:0o767', 503)
-pathEq('number:0b111110111', 503)
+uriEq('number:0o767', 503)
+uriEq('number:0b111110111', 503)
 
 // You can also reference positive and negative infinity:
 
-pathEq('number:Infinity', Infinity)
-pathEq('number:-Infinity', -Infinity)
+uriEq('number:Infinity', Infinity)
+uriEq('number:-Infinity', -Infinity)
 
 // `NaN` is not available
 
@@ -92,30 +92,30 @@ pathEq('number:-Infinity', -Infinity)
 
 // Number literals are common enough to merit a shorthand syntax, the `+` suffix:
 
-pathEq('-5.2+', -5.2)
-pathEq('Infinity+', Infinity)
-pathEq('0o767+', 503)
+uriEq('-5.2+', -5.2)
+uriEq('Infinity+', Infinity)
+uriEq('0o767+', 503)
 
 // ## dates
 
 // Date constructor syntax is just ISO 8601:
 
-pathEq('date:2008-10-01', new Date('2008-10-01'))
+uriEq('date:2008-10-01', new Date('2008-10-01'))
 
 // Date literals also have a shorthand syntax, the `@` suffix:
 
-pathEq('2008-10-01@', new Date('2008-10-01'))
+uriEq('2008-10-01@', new Date('2008-10-01'))
 
 // Year and month shorthand can also be used
 
-// pathEq('2000@', new Date('2008'))
+// uriEq('2000@', new Date('2008'))
 
 // TODO
-// pathEq('2008-02@', new Date('2008-02'))
+// uriEq('2008-02@', new Date('2008-02'))
 
 // Double colon could be used to access static type members, e.g.:
 
-// pathEq(uri('date::now').toString(), Date.now().toString())
+// uriEq(uri('date::now').toString(), Date.now().toString())
 ```
 
 We may also find reasons to borrow semantics from the [ES function bind syntax proposal](https://github.com/zenparsing/es-function-bind)
@@ -123,17 +123,17 @@ We may also find reasons to borrow semantics from the [ES function bind syntax p
 
 ## arrays
 
-Top level paths are serialized as arrays:
+Top level uri "paths" are serialized as arrays:
 
 ```js
-pathEq('/foo/bar/123+', [ 'foo', 'bar', 123 ])
+uriEq('/foo/bar/123+', [ 'foo', 'bar', 123 ])
 ```
 
 Arrays can be nested as well
 
 ```js
 ex = [ 'a', [ 'b', [ null, 'c', 'd', null ], '', 'baz' ], [ 'z' ] ]
-pathEq('/a/(b,(null:,c,d,null:),string:,baz)/z,', ex)
+uriEq('/a/(b,(null:,c,d,null:),string:,baz)/z,', ex)
 ```
 
 
@@ -142,7 +142,7 @@ pathEq('/a/(b,(null:,c,d,null:),string:,baz)/z,', ex)
 Curly braces can be used to introduce template variables. These create placeholders in specific path components which can later be filled. Variable names can be any literal string, but reserved characters must be encoded:
 
 ```js
-tmpl = path('/foo/bar/{ my%24var }/baz/quux'))
+tmpl = uri('/foo/bar/{ my%24var }/baz/quux'))
 eq(tmpl.fill({ my$var: 123 }).uri, '/foo/bar/123+/baz/quux')
 eq(tmpl.fill({ my$var: [ true, 'false' ] }).uri, '/foo/bar/true:,false/baz/quux')
 ```
@@ -150,7 +150,7 @@ eq(tmpl.fill({ my$var: [ true, 'false' ] }).uri, '/foo/bar/true:,false/baz/quux'
 Template variables may be unnamed:
 
 ```js
-tmpl = path('/foo/{*},{*}/{ a }/bar')
+tmpl = uri('/foo/{*},{*}/{ a }/bar')
 ```
 
 All template variables (whether named or not), can be bound by position too:
@@ -170,13 +170,13 @@ eq(tmpl.fill({ a: 'AAA', 0: null }).uri, '/foo/null:,{*}/AAA/bar')
 Binding variables on a template returns a new URI object without mutating the source template:
 
 ```js
-eq(tmpl.uri = path('/foo/{*},{*}/{ a }/bar')
+eq(tmpl.uri = uri('/foo/{*},{*}/{ a }/bar')
 ```
 
 Template variables can also be given a type annotation to constrain the range of legal values that it may be bound to. Providing out-of-bounds variable bindings results in an empty template:
 
 ```js
-tmpl = path('/foo/{ someVar:number },baz')
+tmpl = uri('/foo/{ someVar:number },baz')
 
 eq(tmpl.fill({ someVar: 3 }).uri, '/foo/3+/baz')
 assert.equal(tmpl.fill({ someVar: '3' }), null)
@@ -188,9 +188,9 @@ assert.equal(tmpl.fill([ '-2.5' ]), null)
 Template variables can be used anywhere you might expect to be able to use parentheses to form a group. Attempting to use a template variable to represent only a portion of a given path component will result in an exception:
 
 ```js
-assert.throws(() => path('/foo/bar/{ badVar }:baz/quux'))
-assert.throws(() => path('/foo/bar/baz:{ badVar }/quux'))
-assert.throws(() => path('/foo/bar/baz/{ badVar }+/quux'))
+assert.throws(() => uri('/foo/bar/{ badVar }:baz/quux'))
+assert.throws(() => uri('/foo/bar/baz:{ badVar }/quux'))
+assert.throws(() => uri('/foo/bar/baz/{ badVar }+/quux'))
 // etc...
 ```
 
@@ -199,7 +199,7 @@ assert.throws(() => path('/foo/bar/baz/{ badVar }+/quux'))
 Another way of thinking of key range "templates" is as a kind of query. Template variables define the areas of the keyspace a given template can range over. Consider this template:
 
 ```js
-path('/foo/{ someVar }')
+uri('/foo/{ someVar }')
 ```
 
 This would almost correspond to the query:
@@ -219,7 +219,7 @@ This can be thought of as a query that ranges over *any* `foo` value:
 This is analogous to an `any` type. Thinking of a template as a predicate function, *any* value for `someVar` could be used. But this could be further refined by adding a type declaration to narrow the query space:
 
 ```js
-path('/foo/{ someVar:number }')
+uri('/foo/{ someVar:number }')
 ```
 
 This would correspond to a query like this:
@@ -235,25 +235,25 @@ We could allow type annotations to specify arbitrary ranges right inline, reusin
 For example, refining a type to the range of non-negative reals, the interval `0 <= x < Infinity`, might look like this:
 
 ```js
-path('/foo/{ someVar:(0+,!Infinity+) }')
+uri('/foo/{ someVar:(0+,!Infinity+) }')
 ```
 
 The `!` prefix symbolizes exclusive bounds. The positive reals:
 
 ```js
-path('/foo/{ someVar:(!0+,!Infinity+) }')
+uri('/foo/{ someVar:(!0+,!Infinity+) }')
 ```
 
 This notation would have a sensible interpretation when used directly in URIs:
 
 ```js
-path('/foo/*:(!0+,!Infinity+)')
+uri('/foo/*:(!0+,!Infinity+)')
 ```
 
 This syntax also leave us surface area for additional arguments, like a step param:
 
 ```js
-path('/foo/*:(0+,Infinity+),(step=1000+)
+uri('/foo/*:(0+,Infinity+),(step=1000+)
 ```
 
 This might partition the underlying range in a step-like fashion.
@@ -267,13 +267,13 @@ In addition to controlling the boundaries of partitioning, there are also some u
 Back to key path queries, this should also do what you'd expect:
 
 ```js
-path('/foo/*:number')
+uri('/foo/*:number')
 ```
 
 You could think of this as "desugaring" to the conceptual interval `[number.BOTTOM, number.TOP]`. But in with this syntax we wouldn't even need to add any special `top` and `bottom` types -- we could just reuse our `*:` notation:
 
 ```js
-path('/foo/*:(*:number,*:number)')
+uri('/foo/*:(*:number,*:number)')
 ```
 
 On the left side of an interval `*:type` implies the very bottom of that type. On the right, the very top. In the case of `number` this would correspond to `number:-Infinity` and `number:Infinity`, respectively. But `number` is the exception, not the rule. The top side of most types is usually inaccessible as an actual value. In the case of `date`, both top and bottom are inaccessible -- there is *infinitary* date value, positive or negative.
@@ -281,25 +281,25 @@ On the left side of an interval `*:type` implies the very bottom of that type. O
 To reference all values from, e.g. the `2000` onward, you could conjure up a far-future date, or you could just do this:
 
 ```js
-path('/foo/*:(2000@,*:date)')
+uri('/foo/*:(2000@,*:date)')
 ```
 
 And rather than having to mint special `TOP` and `BOTTOM` instances for the `any` type, we can just use the standalone `*` syntax. On the left side of an interval this means `bottom`, on the right, `top`. To range over all values from the number 0 to `TOP`:
 
 ```js
-path('/foo/*:(0+,*)')
+uri('/foo/*:(0+,*)')
 ```
 
 Ranging from `top` to `bottom` (the `any` type):
 
 ```js
-path('/foo/*:(*,*)')
+uri('/foo/*:(*,*)')
 ```
 
 In this case, the `(*,*)` interval is superfluous, and this could be written more succinctly:
 
 ```js
-path('/foo/*')
+uri('/foo/*')
 ```
 
 In whatever form, the fact that this is not a simple key (or, a possibly inhabited *instance*), but some kind of query or type definition (these two concepts are deeply related in this syntax, just as they should be -- they are completely equivalent). This is made explicit with the `*` prefix present in these various forms. The intent of the underlying range should be readily apparent to the reader -- readable by humans as well as machines, not just arbitrary "growlix" characters assembled with complex rules. The `*` operator has a coherent meaning in its various forms, and the `!` prefix operator is used only only within interval literals (the parenthetical `*:(x,y)` form), and only to denote exclusive interval bounds.
@@ -307,37 +307,37 @@ In whatever form, the fact that this is not a simple key (or, a possibly inhabit
 Coming full circle, back to templates -- an unnamed template variable, number-typed, might look like this:
 
 ```js
-path('/foo/{ *:number }')
+uri('/foo/{ *:number }')
 ```
 
 An unnamed, untyped template variable:
 
 ```js
-path('/foo/{ *:* }')
+uri('/foo/{ *:* }')
 ```
 
 Which could be shortened to:
 
 ```js
-path('/foo/{ * }')
+uri('/foo/{ * }')
 ```
 
 Conceptually, the leading `*` represents an unnamed variable. Naming the variable just involves replaces the leading `*` with a string representing the name:
 
 ```js
-path('/foo/{ someVar:date }')
+uri('/foo/{ someVar:date }')
 ```
 
 A named variable with the `any`-type:
 
 ```js
-path('/foo/{ someVar:* }')
+uri('/foo/{ someVar:* }')
 ```
 
 Again, this could be shortened to:
 
 ```js
-path('/foo/{ someVar }')
+uri('/foo/{ someVar }')
 ```
 
 It all hangs together nicely. Queries are type defs and vice versa. Defining a template variable just punches a "hole" in the underlying data structure.
@@ -350,26 +350,26 @@ In a more formal sense, a template with one variable could be thought of as the 
 The encoding function can also be used as a template string:
 
 ```js
-deepEq(path`/true:/foo/null:`.data, [ true, 'foo', null ])
+deepEq(uri`/true:/foo/null:`.data, [ true, 'foo', null ])
 ```
 
 Interpolated variables will be strongly typed when encoded:
 
 ```js
-deepEq(path`/a/${ 0 }/${ new Date('2000') }`.data, [ 'a', 0, new Date('2000') ] }
+deepEq(uri`/a/${ 0 }/${ new Date('2000') }`.data, [ 'a', 0, new Date('2000') ] }
 ```
 
 String variables will be URI encoded automatically:
 
 ```js
-eq(path`/b/${ 'C/d@e.f%G' }/h' }`.data, [ '/b/C%2Fd%40e.f%25G/h' ])
+eq(uri`/b/${ 'C/d@e.f%G' }/h' }`.data, [ '/b/C%2Fd%40e.f%25G/h' ])
 ```
 
 Array variables will also be correctly encoded:
 
 ```js
 data = [ 'c/d', false, 'null:', 20*-3 ]
-key = path`/a/b/${ ex }`
+key = uri`/a/b/${ ex }`
 eq(key.uri, '/a/b/c%Fd,false:,null%3A,-60+')
 deepEq(k.data, data)
 ```
@@ -378,7 +378,7 @@ Even deeply nested arrays:
 
 ```js
 data = [ 'a/B', [ 'null:', [ [], true ] ], -Infinity ]
-key = path`/${ data }/a/string:a@b.com`
+key = uri`/${ data }/a/string:a@b.com`
 eq(key.uri, '/A%2FB,(null%3A,(array:,true:)),-Infinity+)/a/a%40b.com')
 deepEq(key.data, data)
 ```
@@ -387,7 +387,7 @@ This works with objects too:
 
 ```js
 data = { foo: true, baz: [ '', {}, 0, { a: 1 } ], bar: '0' }
-key = path`/${ data }/s`
+key = uri`/${ data }/s`
 eq(key.uri, '/foo=true:,baz=(string:,0+,object:,(a=1)),bar=0')
 deepEq(key.data, data)
 ```
@@ -404,3 +404,22 @@ Parsed URIs are backed by persistent immutable data structures. This property al
 Stamping values in a template is just a matter of replacing variable placeholders with new data. Due to structural sharing, this is an extremely cheap operation. Structural sharing could also drastically improve the performance of encoding. The structures in a template only need to be encoding once, and this data can be shared by all template instances. When encoding an instance, only new data structures must encoded (and only the first time) -- the encoded bytewise values for all existing data structures can be reused. Encoding a bytewise value would mostly consist of copying memory around. For certain usage patterns, e.g. largish templates with smallish variable bindings, encoding performance should be in the ballpark of native JSON, a few orders of magnitude better than vanilla bytewise.
 
 Structural sharing also makes it extremely inexpensive to join key paths together, like when you're prefixing keys with a namespace, or adding a suffix to a key to reference its "children".
+
+```
+var namespace = uri('/some/app/namespace')
+var partialRoute = uri('/foo/bar/{ foo:number }')
+
+// paths can be stacked together like "sublevels", but with nice clean keyspaces
+var fullRoute = namespace.append(partialRoute)
+
+// or go the other way:
+fullRoute = partialRoute.prepend(namespace)
+
+
+// req.url === '/some/app/namespace/foo/bar/-12.3+'
+if (fullRoute.match(req.url)) {
+  // should be very cheap to reexecute match
+  var context = fullRoute.match(req.url)
+  context.variables.foo === -12.3
+}
+```

@@ -3,7 +3,7 @@ var assert = require('assert')
 var bytewise = require('bytewise-core')
 require('./serialization')
 
-function eq(uri, expected) {
+function uriEq(uri, expected) {
   var result = path(uri)
   assert.deepEqual(result.data, expected)
   assert.equal(result + '', bytewise.encode(expected) + '')
@@ -12,31 +12,6 @@ function eq(uri, expected) {
 function throws(message, uri) {
   assert.throws(function () { path(uri) }, message + ': "' + uri + '"')
 }
-
-
-;[
-  '',
-  '/',
-  '//',
-  '//a',
-  '//a/',
-  '/a//',
-  '/a//b',
-  '/a//b/',
-]
-
-;[
-  ',',
-  '/,',
-]
-
-;[
-  'array:', [],
-  '/array:', [ [] ],
-  '/array:,', [ [ [] ] ],
-  '/array:a,', [ [ 'a' ] ],
-  '/array:/a,', [ [], [ 'z' ] ],
-]
 
 
 var fails = []
@@ -162,7 +137,7 @@ for (var i = 0, len = fails.length; i < len;) {
 
 // general insanity
 
-eq('/foo/baz,/(-12.3+,(2344-10-10@,bar,d,(a,b,array:)))', [
+uriEq('/foo/baz,/(-12.3+,(2344-10-10@,bar,d,(a,b,array:)))', [
   'foo',
   [ 'baz' ],
   [
@@ -179,7 +154,7 @@ eq('/foo/baz,/(-12.3+,(2344-10-10@,bar,d,(a,b,array:)))', [
 var k = '/foo,/(345+,-12.3+,(2010-10-10T10:10:10-05:00@,bar,0x22,0x22+,0o777+,d\
 ,(a,false:,(string%3Atrue,null:))))'
 
-eq(k, [
+uriEq(k, [
   [ 'foo' ],
   [
     345,
