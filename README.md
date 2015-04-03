@@ -318,7 +318,7 @@ This works with objects too:
 ```js
 ex = { foo: true, baz: [ '', {}, 0, { a: 1 } ], bar: '0' }
 k = path`/${ ex }/s`
-eq(k.uri, '/foo=true:,baz=(string:,0+,object:,(a=1;)),bar=0')
+eq(k.uri, '/foo=true:,baz=(string:,0+,object:,(a=1)),bar=0')
 deepEq(k.data, ex)
 ```
 
@@ -333,3 +333,4 @@ Parsed URIs are backed by persistent immutable data structures. This property al
 
 Stamping values in a template is just a matter of replacing variable placeholders with new data. Due to structural sharing, this is an extremely cheap operation. Structural sharing could also drastically improve the performance of encoding. The structures in a template only need to be encoding once, and this data can be shared by all template instances. When encoding an instance, only new data structures must encoded (and only the first time) -- the encoded bytewise values for all existing data structures can be reused. Encoding a bytewise value would mostly consist of copying memory around. For certain usage patterns, e.g. largish templates with smallish variable bindings, encoding performance should be in the ballpark of native JSON, a few orders of magnitude better than vanilla bytewise.
 
+Structural sharing also makes it extremely inexpensive to join key paths together, like when you're prefixing keys with a namespace, or adding a suffix to a key to reference its "children".
