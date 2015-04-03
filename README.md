@@ -15,7 +15,7 @@ var eq = assert.strictEqual
 var deepEq = assert.deepEqual
 
 function pathEq(uri, expected) {
-  deepEq(path(uri).valueOf(), expected)
+  deepEq(path(uri).data, expected)
 }
 
 // ## primitives
@@ -62,7 +62,7 @@ pathEq('mailto%3A%2F%2Ffoo%2Bbar%40baz.com', 'mailto://foo+bar@baz.com')
 
 // Binary data is also supported:
 
-deepEq(path('binary:deadbeef').valueOf(), Buffer('deadbeef', 'hex'))
+deepEq(path('binary:deadbeef').data, Buffer('deadbeef', 'hex'))
 
 
 // ## numbers
@@ -278,7 +278,7 @@ It all hangs together pretty well.
 The encoding function can also be used as a template string:
 
 ```js
-deepEq(path`/true:/foo/null:`.valueOf(), [ true, 'foo', null ])
+deepEq(path`/true:/foo/null:`.data, [ true, 'foo', null ])
 ```
 
 Interpolated variables will be strongly typed when encoded:
@@ -299,7 +299,7 @@ Array variables will also be correctly encoded:
 ex = [ 'c/d', false, 'null:', 20*-3 ]
 k = path`/a/b/${ ex }`
 eq(k.uri, '/a/b/c%Fd,false:,null%3A,-60+')
-deepEq(k.valueOf(), ex)
+deepEq(k.data, ex)
 ```
 
 Even deeply nested arrays:
@@ -308,7 +308,7 @@ Even deeply nested arrays:
 ex = [ 'a/B', [ 'null:', [ [], true ] ], -Infinity ]
 k = path`/${ ex }/a/string:a@b.com`
 eq(k.uri, '/A%2FB,(null%3A,(array:,true:)),-Infinity+)/a/a%40b.com')
-deepEq(k.valueOf(), ex)
+deepEq(k.data, ex)
 ```
 
 This works with objects too:
@@ -317,7 +317,7 @@ This works with objects too:
 ex = { foo: true, baz: [ '', {}, 0, { a: 1 } ], bar: '0' }
 k = path`/${ ex }/s`
 eq(k.uri, '/foo=true:,baz=(string:,0+,object:,(a=1;)),bar=0')
-deepEq(k.valueOf(), ex)
+deepEq(k.data, ex)
 ```
 
 String template interpolations are escaped using the underlying templating functionality of the system. As part of the interpolation process, an intermediate template is created with specially-keyed variables.

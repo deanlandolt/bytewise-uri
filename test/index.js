@@ -4,7 +4,7 @@ var bytewise = require('bytewise-core')
 
 function eq(uri, expected) {
   var result = key(uri)
-  assert.deepEqual(result.valueOf(), expected)
+  assert.deepEqual(result.data, expected)
   assert.equal(result + '', bytewise.encode(expected) + '')
 }
 
