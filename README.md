@@ -185,7 +185,7 @@ eq(tmpl([ -2.5 }).uri, '/foo/-2.5+/baz')
 throws(() => tmpl([ '-2.5' ]))
 ```
 
-// Template variables can be used anywhere you might expect to be able to use parentheses to form a group. Attempting to use a template variable to represent only a portion of a given path component will result in an exception:
+Template variables can be used anywhere you might expect to be able to use parentheses to form a group. Attempting to use a template variable to represent only a portion of a given path component will result in an exception:
 
 ```js
 throws(() => path('/foo/bar/{ badVar }:baz/quux'))
@@ -194,7 +194,7 @@ throws(() => path('/foo/bar/baz/{ badVar }+/quux'))
 // etc...
 ```
 
-## Path templates as queries
+## Templates as queries
 
 Another way of thinking of key range "templates" is as a kind of query. Template variables define the areas of the keyspace a given template can range over. Consider this template:
 
@@ -304,7 +304,7 @@ path('/foo/*')
 
 In whatever form, the fact that this is not a simple key (or, a possibly inhabited *instance*), but some kind of query or type definition (these two concepts are deeply related in this syntax, just as they should be -- they are completely equivalent). This is made explicit with the `*` prefix present in these various forms. The intent of the underlying range should be readily apparent to the reader -- readable by humans as well as machines, not just arbitrary "growlix" characters assembled with complex rules. The `*` operator has a coherent meaning in its various forms, and the `!` prefix operator is used only only within interval literals (the parenthetical `*:(x,y)` form), and only to denote exclusive interval bounds.
 
-Coming full circle, back to path templates, an unnamed template variable, number-typed:
+Coming full circle, back to templates, an unnamed template variable, number-typed:
 
 ```js
 path('/foo/{ *:number }')
