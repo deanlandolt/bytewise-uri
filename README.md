@@ -88,7 +88,7 @@ pathEq('number:-Infinity', -Infinity)
 
 // `NaN` is not available
 
-// throws(() => uri('number:NaN'))
+// assert.throws(() => uri('number:NaN'))
 
 // Number literals are common enough to merit a shorthand syntax, the `+` suffix:
 
@@ -145,32 +145,41 @@ Curly braces can be used to introduce template variables. These create placehold
 tmpl = path('/foo/bar/{ myVar }/baz/quux'))
 eq(tmpl({ myVar: 123 }).uri, '/foo/bar/123+/baz/quux')
 eq(tmpl({ myVar: [ true, 'false' ] }).uri, '/foo/bar/true:,false/baz/quux')
+```
 
-// Template variables may be unnamed:
+Template variables may be unnamed:
 
+```js
 tmpl = path('/foo/{*},{*}/{ a }/bar')
+```
 
-// All template variables (whether named or not), can be bound by position too:
+All template variables (whether named or not), can be bound by position too:
 
+```js
 eq(tmpl([ 'z', [ 'y' ], { x: 1 } ]).uri, '/foo/z,(y,)/x=1,/bar')
+```
 
-// Or a mix of both may be used, as shown below.
+Or a mix of both may be used, as shown below.
 
 Also note that that not all variables have to be populated at once -- any unbound variables carry over to the newly generated uri instance:
 
+```js
 eq(tmpl({ a: 'AAA', 0: null }).uri, '/foo/null:,{*}/AAA/bar')
+```
 
-// Binding variables on a template returns a new URI object without mutating the
-// source template:
+Binding variables on a template returns a new URI object without mutating the source template:
 
+```js
 eq(tmpl.uri = path('/foo/{*},{*}/{ a }/bar')
+```
 
-// Template variables can also be given a type annotation to constrain the range of legal values that it may be bound to:
+Template variables can also be given a type annotation to constrain the range of legal values that it may be bound to:
 
+```js
 tmpl = path('/foo/{ someVar : number },baz')
 
 eq(tmpl({ someVar: 3 }).uri, '/foo/3+/baz')
-throws(() => tmpl({ someVar: '3' }))
+assert.equal(tmpl({ someVar: '3' }), null)
 
 eq(tmpl([ -2.5 }).uri, '/foo/-2.5+/baz')
 throws(() => tmpl([ '-2.5' ]))
@@ -210,7 +219,7 @@ This can be thought of as a query that ranges over *any* `foo` value:
 This is analogous to an `any` type. Thinking of a template as a predicate function, *any* value for `someVar` could be used. But this could be further refined by adding a type declaration to narrow the query space:
 
 ```js
-path('/foo/{ someVar : number }')
+path('/foo/{ someVar:number }')
 ```
 
 This would correspond to a query like this:
@@ -219,20 +228,20 @@ This would correspond to a query like this:
 { gte: '/foo/Infinity+:', lte: '/foo/-Infinity+' }
 ```
 
-### Ranges as type system
+### Ranges as type annotations
 
-We could allow type annotations to specify arbitrary ranges right inline, reusing our interval notation, whatever we eventually settle on (various ideas kicked around [here](https://gist.github.com/deanlandolt/1522a1126727afbfdd4d).
+We could allow type annotations to specify arbitrary ranges right inline, reusing our range notation.
 
 For example, refining a type to the range of non-negative reals, the interval `0 <= x < Infinity`, might look like this:
 
 ```js
-path('/foo/{ someVar : (0+,!Infinity+) }')
+path('/foo/{ someVar:(0+,!Infinity+) }')
 ```
 
 The `!` prefix symbolizes exclusive bounds. The positive reals:
 
 ```js
-path('/foo/{ someVar : (!0+,!Infinity+) }')
+path('/foo/{ someVar:(!0+,!Infinity+) }')
 ```
 
 This notation would have a sensible interpretation when used directly in URIs:
@@ -241,10 +250,10 @@ This notation would have a sensible interpretation when used directly in URIs:
 path('/foo/*:(!0+,!Infinity+)')
 ```
 
-This would also leave us surface area for additional arguments, like a step param:
+This syntax also leave us surface area for additional arguments, like a step param:
 
 ```js
-path('/foo/*:(0+,Infinity+,1000+)
+path('/foo/*:(0+,Infinity+),(step=1000+)
 ```
 
 This might partition the underlying range in a step-like fashion.
@@ -255,11 +264,45 @@ For example the semantics you might expect from a range `step` function could al
 
 In addition to controlling the boundaries of partitioning, there are also some use cases for controlling the size of the *window* in each partition. By default this would be equal to the size of the partition itself, but you may want to shrink this window, perhaps collapsing it down to a single point. This would create a comb over the keyspace that will only pick out records that fall precisely on the boundary created by your partition. This could also be put to use for typed template variables, allowing them to be constrained to the space of integers, for instance. Or refined with even more detail -- even numbers, odd numbers, numbers divisible by some `n`, etc. This approach could accomodate just about anything you could specify with set builder notation, so quite a lot! If we're careful, these type predicates should be statically verifiable, yet inexpensive enough to type check that they could be useful as runtime "guards". This would be useful for defining type-constrained API endpoints where "routing" is just type verification.
 
-Back to key path queries, this shold also do what you'd expect:
+Back to key path queries, this should also do what you'd expect:
 
 ```js
 path('/foo/*:number')
 ```
+
+You could think of this as "desugaring" to the conceptual interval `[number.BOTTOM, number.TOP]`. But in with this syntax we wouldn't even need to add any special `top` and `bottom` types -- we could just reuse our `*:` notation:
+
+```js
+path('/foo/*:(*:number,*:number)')
+```
+
+On the left side of an interval `*:type` implies the very bottom of that type. On the right, the very top. In the case of `number` this would correspond to `number:-Infinity` and `number:Infinity`, respectively. But `number` is the exception, not the rule. The top side of most types is usually inaccessible as an actual value. In the case of `date`, both top and bottom are inaccessible -- there is *infinitary* date value, positive or negative.
+
+To reference all values from, e.g. the `2000` onward, you could conjure up a far-future date, or you could just do this:
+
+```js
+path('/foo/*:(2000@,*:date)')
+```
+
+Rather than minting a special `top` and `bottom` type for the `any` type, we can just use `*` without a `:` suffix. On the left side of an interval this means `bottom`, on the right, `top`. To range over all values from the number 0 to `any`:
+
+```js
+path('/foo/*:(0+,*)')
+```
+
+Ranging from `top` to `bottom` (the `any` type):
+
+```js
+path('/foo/*:(*,*)')
+```
+
+In this case, the `(*,*)` interval is superfluous, and this could be written more succinctly:
+
+```js
+path('/foo/*')
+```
+
+In whatever form, the fact that this is not a simple key (or, a possibly inhabited *instance*), but some kind of query or type definition (these two concepts are deeply related in this syntax, just as they should be -- they are completely equivalent). This is made explicit with the `*` prefix present in these various forms. The intent of the underlying range should be readily apparent to the reader -- readable by humans as well as machines, not just arbitrary "growlix" characters assembled with complex rules. The `*` operator has a coherent meaning in its various forms, and the `!` prefix operator is used only only within interval literals (the parenthetical `*:(x,y)` form), and only to denote exclusive interval bounds.
 
 Coming full circle, back to path templates, an unnamed template variable, number-typed:
 
@@ -270,9 +313,34 @@ path('/foo/{ *:number }')
 An unnamed, untyped template variable:
 
 ```js
-path('/foo/{ * }')
+path('/foo/{ *:* }')
+```
 
-It all hangs together pretty well.
+Which could be shortened to:
+
+```js
+path('/foo/{ * }')
+```
+
+Conceptually, the leading `*` represents an unnamed variable. Naming the variable just involves replaces the leading `*` with a string representing the name:
+
+```js
+path('/foo/{ someVar:date }')
+```
+
+A named variable with the `any`-type:
+
+```js
+path('/foo/{ someVar:* }')
+```
+
+Again, this could be shortened to:
+
+```js
+path('/foo/{ someVar }')
+```
+
+It all hangs together nicely.
 
 
 ## Template strings
