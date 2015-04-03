@@ -21,7 +21,7 @@ function Path(input) {
     var unique = (Math.random() + '').slice(2)
     var interpolations = {}
     for (var i = 1; i < len; ++i) {
-      var name = '{' + i + '-' + unique + '}'
+      var name = '{' + i + '~' + unique + '}'
       source += name + input[i]
       interpolations[name] = arguments[i]
     }
@@ -49,7 +49,7 @@ Object.defineProperties(Path.prototype, {
   encoded: {
     get: function () {
       // TODO: keep generated buffer private and return a copy on each call
-      return this._encoded || (this._encoded = bytewise.encode(this._parsed))
+      return this._encoded || (this._encoded = bytewise.encode(this.data))
     }
   },
   toString: {

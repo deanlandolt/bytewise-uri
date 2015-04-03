@@ -93,25 +93,25 @@ GROUP_COMPONENT 'a group'
 
 VARIABLE_COMPONENT 'a template variable'
   = '{' S* config:VARIABLE_LEXICAL S* '}' {
-      // TODO:
-      // keep a count of sequential of placeholders
-      // keep track of whether we're nested or in the top level
-      // do something less shitty, e.g. use a sigil object from typewise
+      // TODO: keep a sequential reference to each hole placeholder created
+      // and do something less shitty, e.g. use a sigil object from typewise
       return {
-        $placeholder: config[0],
-        $prefix: config[1] || ''
+        $name: config[0] || '',
+        $range: config[1] || ''
       }
     }
 
 VARIABLE_LEXICAL
-  = prefix:VARIABLE_PREFIX ':' id:VARIABLE_IDENT { return [ id, prefix ] }
-  / id:VARIABLE_IDENT { return [ id ] }
+  = name:VARIABLE_NAME S* ':' S* range:VARIABLE_RANGE { return [ name, range ] }
+  / name:VARIABLE_NAME { return [ name ] }
 
-VARIABLE_PREFIX
-  = c:COMPONENT_CHAR+ { return c.join('') }
+VARIABLE_NAME
+  = '*' { return '' }
+  / c:COMPONENT_CHAR+ { return c.join('') }
 
-VARIABLE_IDENT
-  = c:COMPONENT_CHAR* { return c.join('') }
+VARIABLE_RANGE
+  = '*' { return '' }
+  / c:COMPONENT_CHAR+ { return c.join('') }
 
 
 BOOLEAN_COMPONENT 'a boolean'
@@ -173,12 +173,8 @@ NUMBER_BASE
   }
 
 NUMBER_LEXICAL
-  = 'number:' c:NUMBER_CHAR+ { return c.join('') } // number ctor
-  / c:NUMBER_CHAR+ '+' { return c.join('') } // number literal
-
-NUMBER_CHAR
-  = COMPONENT_CHAR
-  / [+] // allow + for exponential notation
+  = 'number:' c:COMPONENT_CHAR+ { return c.join('') } // number ctor
+  / c:COMPONENT_CHAR+ '+' { return c.join('') } // number literal
 
 
 DATE_COMPONENT 'a date'

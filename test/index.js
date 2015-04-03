@@ -1,15 +1,15 @@
-var key = require('../')
+var path = require('../')
 var assert = require('assert')
 var bytewise = require('bytewise-core')
 
 function eq(uri, expected) {
-  var result = key(uri)
+  var result = path(uri)
   assert.deepEqual(result.data, expected)
-  assert.equal(result + '', bytewise.encode(expected) + '')
+  assert.equal(result.encoded + '', bytewise.encode(expected) + '')
 }
 
 function throws(message, uri) {
-  assert.throws(function () { key(uri) }, message + ': "' + uri + '"')
+  assert.throws(function () { path(uri) }, message + ': "' + uri + '"')
 }
 
 
@@ -139,7 +139,7 @@ invalidDates.forEach(function (v, i) {
 
 fails.push('somewhat restricted ES6-based date parsing', invalidDates)
 
-// key prefix and suffix combinations to test various failure scenarios
+// path prefix and suffix combinations to test various failure scenarios
 var contexts = [
   [ '', '' ],
   [ '/', ''],
@@ -158,42 +158,42 @@ for (var i = 0, len = fails.length; i < len;) {
   })
 }
 
-// general craziness
+// general insanity
 
-// eq('/foo/baz,/(-12.3+,(2344-10-10@,bar,d,(a,b,array:)))', [
-//   "foo",
-//   [ "baz" ],
-//   [
-//     -12.3,
-//     [
-//       new Date('2344-10-10'),
-//       "bar",
-//       "d",
-//       [ "a", "b", [] ]
-//     ]
-//   ]
-// ])
+eq('/foo/baz,/(-12.3+,(2344-10-10@,bar,d,(a,b,array:)))', [
+  'foo',
+  [ 'baz' ],
+  [
+    -12.3,
+    [
+      new Date('2344-10-10'),
+      "bar",
+      'd',
+      [ 'a', 'b', [] ]
+    ]
+  ]
+])
 
-// var k = '/foo,/(345+,-12.3+,(2010-10-10T10:10:10-05:00@,bar,0x22,0x22+,0o777+,d\
-// ,(a,false:,(string%3Atrue,null:))))'
+var k = '/foo,/(345+,-12.3+,(2010-10-10T10:10:10-05:00@,bar,0x22,0x22+,0o777+,d\
+,(a,false:,(string%3Atrue,null:))))'
 
-// eq(k, [
-//   [ "foo" ],
-//   [
-//     345,
-//     -12.3,
-//     [
-//       "Sun Oct 10 2010 11:10:10 GMT-0400 (EDT)",
-//       "bar",
-//       "0x22",
-//       34,
-//       511,
-//       "d",
-//       [
-//         "a",
-//         false,
-//         [ "string:true", null ]
-//       ]
-//     ]
-//   ]
-// ])
+eq(k, [
+  [ "foo" ],
+  [
+    345,
+    -12.3,
+    [
+      new Date('2010-10-10T10:10:10-05:00'),
+      'bar',
+      '0x22',
+      0x22,
+      511,
+      'd',
+      [
+        'a',
+        false,
+        [ 'string:true', null ]
+      ]
+    ]
+  ]
+])
