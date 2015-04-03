@@ -22,10 +22,10 @@ var deepEq = assert.deepEqual
   '/foo/bar,baz,(quux,123+),2000@/true:',
 
   // objects
-  // '/foo/object:',
-  // '/foo/(a=1+)',
-  // '/foo/(a=1+,b=2)',
-  // '/foo/(a=1+,b=2,c=())',
+  '/foo/object:',
+  '/foo/(a=1+)',
+  '/foo/(a=1+,b=2)',
+  '/foo/(a=1+,b=2,c=())',
   // '/foo/(a=1+,b=2,c=(d))',
   // '/foo/(a=1+,b=2,c=(d,foo))',
   // '/foo/(a=1+,b=2,c=(d=foo))',
