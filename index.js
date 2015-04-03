@@ -21,11 +21,10 @@ function Path(input) {
     var unique = (Math.random() + '').slice(2)
     var interpolations = {}
     for (var i = 1; i < len; ++i) {
-      var name = `{ ${ i }-${ unique } }`
+      var name = '{' + i + '-' + unique + '}'
       source += name + input[i]
       interpolations[name] = arguments[i]
     }
-    console.log(source, interpolations)
 
     //
     // generate template from provided source and fill with interpolations
