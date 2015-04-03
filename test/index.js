@@ -1,11 +1,12 @@
 var path = require('../')
 var assert = require('assert')
 var bytewise = require('bytewise-core')
+require('./serialization')
 
 function eq(uri, expected) {
   var result = path(uri)
   assert.deepEqual(result.data, expected)
-  assert.equal(result.encoded + '', bytewise.encode(expected) + '')
+  assert.equal(result + '', bytewise.encode(expected) + '')
 }
 
 function throws(message, uri) {
@@ -158,6 +159,7 @@ for (var i = 0, len = fails.length; i < len;) {
   })
 }
 
+
 // general insanity
 
 eq('/foo/baz,/(-12.3+,(2344-10-10@,bar,d,(a,b,array:)))', [
@@ -167,7 +169,7 @@ eq('/foo/baz,/(-12.3+,(2344-10-10@,bar,d,(a,b,array:)))', [
     -12.3,
     [
       new Date('2344-10-10'),
-      "bar",
+      'bar',
       'd',
       [ 'a', 'b', [] ]
     ]
@@ -178,7 +180,7 @@ var k = '/foo,/(345+,-12.3+,(2010-10-10T10:10:10-05:00@,bar,0x22,0x22+,0o777+,d\
 ,(a,false:,(string%3Atrue,null:))))'
 
 eq(k, [
-  [ "foo" ],
+  [ 'foo' ],
   [
     345,
     -12.3,

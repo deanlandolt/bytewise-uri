@@ -1,5 +1,6 @@
 var bytewise = require('bytewise-core')
 var parser = require('./parser')
+var serialization = require('./serialization')
 
 function Path(input) {
   //
@@ -32,24 +33,33 @@ function Path(input) {
     return (new Path(source)).fill(interpolations)
   }
 
-
+  //
+  // allow newless construction
+  //
   if (!(this instanceof Path))
     return new Path(input)
 
-  // TODO: parse should return immutable data structures
-  this._parsed = parser.parse(this.uri = input)
+  this._parsed = serialization.parse(this._input = input)
+
 }
 
 Object.defineProperties(Path.prototype, {
   data: {
     get: function () {
-      return this._parsed.value
+      return this._parsed.data
     }
   },
-  encoded: {
+  fill: {
+    value: function (args) {
+      // TODO
+      console.log('TODO: fill args:', args)
+      return this
+    }
+  },
+  key: {
     get: function () {
       // TODO: keep generated buffer private and return a copy on each call
-      return this._encoded || (this._encoded = bytewise.encode(this.data))
+      return this._key || (this._key = bytewise.encode(this.data))
     }
   },
   toString: {
@@ -57,20 +67,19 @@ Object.defineProperties(Path.prototype, {
       //
       // default to hex to preserve order in case of accidental string coercion
       //
-      return this.encoded.toString(codec || 'hex')
+      return this.key.toString(codec || 'hex')
     }
   },
   uri: {
     get: function () {
-      // TODO: stringify `this.data` back into a uri
-    }
-  },
-  fill: {
-    value: function (args) {
+      var uri = serialization.stringify(this.data, this._parsed)
       // TODO
-      console.log(args)
-      return this
-    }
+      Object.defineProperty(this, 'uri', {
+        value: uri
+      })
+      return uri
+    },
+    configurable: true
   }
 })
 

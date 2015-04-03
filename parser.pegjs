@@ -8,9 +8,9 @@
 
 
 START
-  = value:INDEX_PATH { return { type: 'index', value: value } }
-  / value:KEY_PATH { return { type: 'key', value: value } }
-  / value:COMPONENT { return { type: 'component', value: value } }
+  = data:INDEX_PATH { return { data: data, path: true, index: true } }
+  / data:KEY_PATH { return { data: data, path: true } }
+  / data:COMPONENT { return { data: data } }
 
 INDEX_PATH
   = parts:KEY_PATH PATH_SEP { return parts }
@@ -195,7 +195,7 @@ DATE_LEXICAL
 
 // dates requires 4 digit year
 DATE_LEXICAL_BASE
-  = year:DATE_YEAR rest:DATE_REST { console.log(year, rest); return year + rest }
+  = year:DATE_YEAR rest:DATE_REST { return year + rest }
 
 DATE_YEAR
   = c:(DIGIT DIGIT DIGIT DIGIT) { return c.join('') }
