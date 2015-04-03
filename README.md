@@ -395,7 +395,7 @@ String template interpolations are escaped using the underlying templating funct
 Work requierd to do any actual escapement is deferred until an underlying URI string is requested, which may not ever be necessary. By leveraging the underlying templating system allows interpolation to simply replace template object placeholders with provided values. 
 
 
-### Persistent immutable templates
+### Templates and persistent immutable data
 
 Parsed URIs are backed by persistent immutable data structures. This property allows them to be passed around to untrusted code without fear of mutation, and offers some other interesting security and developer ergonomics benefits. But the performance benefits are even more interesting...
 
