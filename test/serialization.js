@@ -40,6 +40,7 @@ var deepEq = assert.deepEqual
   var key2 = uri(key1.uri)
 
   deepEq(key1.data, key2.data)
+  eq(key1.uri, key2.uri)
   eq(key1._input, input)
   eq(key2._input, key1.uri)
 })
