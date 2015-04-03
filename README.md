@@ -137,7 +137,7 @@ pathEq('/a/(b,(null:,c,d,null:),string:,baz)/z,', ex)
 ```
 
 
-## Path templates
+## Templates
 
 Curly braces can be used to introduce template variables. These create placeholders in specific path components which can later be filled. Variable names can be any valid javascript identifier:
 
