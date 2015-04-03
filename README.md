@@ -139,12 +139,12 @@ pathEq('/a/(b,(null:,c,d,null:),string:,baz)/z,', ex)
 
 ## Templates
 
-Curly braces can be used to introduce template variables. These create placeholders in specific path components which can later be filled. Variable names can be any valid javascript identifier:
+Curly braces can be used to introduce template variables. These create placeholders in specific path components which can later be filled. Variable names can be any literal string, but reserved characters must be encoded:
 
 ```js
-tmpl = path('/foo/bar/{ myVar }/baz/quux'))
-eq(tmpl({ myVar: 123 }).uri, '/foo/bar/123+/baz/quux')
-eq(tmpl({ myVar: [ true, 'false' ] }).uri, '/foo/bar/true:,false/baz/quux')
+tmpl = path('/foo/bar/{ my%24var }/baz/quux'))
+eq(tmpl.fill({ my$var: 123 }).uri, '/foo/bar/123+/baz/quux')
+eq(tmpl.fill({ my$var: [ true, 'false' ] }).uri, '/foo/bar/true:,false/baz/quux')
 ```
 
 Template variables may be unnamed:
@@ -156,7 +156,7 @@ tmpl = path('/foo/{*},{*}/{ a }/bar')
 All template variables (whether named or not), can be bound by position too:
 
 ```js
-eq(tmpl([ 'z', [ 'y' ], { x: 1 } ]).uri, '/foo/z,(y,)/x=1,/bar')
+eq(tmpl.fill([ 'z', [ 'y' ], { x: 1 } ]).uri, '/foo/z,(y,)/x=1,/bar')
 ```
 
 Or a mix of both may be used, as shown below.
@@ -164,7 +164,7 @@ Or a mix of both may be used, as shown below.
 Also note that that not all variables have to be populated at once -- any unbound variables carry over to the newly generated uri instance:
 
 ```js
-eq(tmpl({ a: 'AAA', 0: null }).uri, '/foo/null:,{*}/AAA/bar')
+eq(tmpl.fill({ a: 'AAA', 0: null }).uri, '/foo/null:,{*}/AAA/bar')
 ```
 
 Binding variables on a template returns a new URI object without mutating the source template:
@@ -178,11 +178,11 @@ Template variables can also be given a type annotation to constrain the range of
 ```js
 tmpl = path('/foo/{ someVar:number },baz')
 
-eq(tmpl({ someVar: 3 }).uri, '/foo/3+/baz')
-assert.equal(tmpl({ someVar: '3' }), null)
+eq(tmpl.fill({ someVar: 3 }).uri, '/foo/3+/baz')
+assert.equal(tmpl.fill({ someVar: '3' }), null)
 
-eq(tmpl([ -2.5 }).uri, '/foo/-2.5+/baz')
-assert.equal(tmpl([ '-2.5' ]), null)
+eq(tmpl.fill([ -2.5 }).uri, '/foo/-2.5+/baz')
+assert.equal(tmpl.fill([ '-2.5' ]), null)
 ```
 
 Template variables can be used anywhere you might expect to be able to use parentheses to form a group. Attempting to use a template variable to represent only a portion of a given path component will result in an exception:
