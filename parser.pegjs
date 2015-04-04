@@ -1,28 +1,28 @@
 {
-  var codecs
-  try {
-    codecs = require('bytewise-core/util/codecs')
-  }
-  catch(e) {}
+  var serialization = require('./serialization')
+  var config = { holes: [] }
 }
 
 
 START
-  = data:INDEX_PATH { return { data: data, path: true, index: true } }
-  / data:KEY_PATH { return { data: data, path: true } }
-  / data:COMPONENT { return { data: data } }
+  = data:(INDEX_PATH / KEY_PATH / COMPONENT) {
+    // TODO: positional template holes?
+    config.data = data
+    return config
+  }
 
 INDEX_PATH
-  = parts:KEY_PATH PATH_SEP { return parts }
+  = data:KEY_PATH PATH_SEP { config.index = true; return data }
 
 KEY_PATH
-  = parts:PATH_PART+ { return parts }
+  = data:PATH_PART+ { config.path = true; return data }
 
 PATH_PART
   = PATH_SEP part:COMPONENT { return part }
 
 PATH_SEP
   = '/'
+
 
 DIGIT
   = [0-9]
@@ -66,11 +66,19 @@ COMPONENT
 
 VARIADIC_COMPONENT
   = ARRAY_COMPONENT
-  / OBJECT_COMPONENT
+  / tuples:OBJECT_COMPONENT {
+    // TODO: defer to reviver in type system
+    var obj = {}
+    for (var i = 0, length = tuples.length; i < length; ++i) {
+      var tuple = tuples[i]
+      obj[tuple[0]] = tuple[1]
+    }
+    return obj
+  }
 
 UNARY_COMPONENT
   = NULLARY_COMPONENT
-  / GROUP_COMPONENT
+  / GROUPED_COMPONENT
   / VARIABLE_COMPONENT
   / NUMBER_COMPONENT
   / DATE_COMPONENT
@@ -78,27 +86,26 @@ UNARY_COMPONENT
   / STRING_COMPONENT
 
 NULLARY_COMPONENT
-  = ARRAY_COMPONENT_EMPTY
-  / OBJECT_COMPONENT_EMPTY
+  = OBJECT_COMPONENT_EMPTY
   / BOOLEAN_COMPONENT
   / NULL_COMPONENT
   / UNDEFINED_COMPONENT
 
 
-GROUP_COMPONENT 'a group'
+GROUPED_COMPONENT 'a group'
   = '(' val:VARIADIC_COMPONENT ')' { return val }
   / '(' val:UNARY_COMPONENT ')' { return [ val ] }
   / '()' { return [] }
 
 
 VARIABLE_COMPONENT 'a template variable'
-  = '{' S* config:VARIABLE_LEXICAL S* '}' {
-      // TODO: keep a sequential reference to each hole placeholder created
-      // and do something less shitty, e.g. use a sigil object from typewise
-      return {
-        $name: config[0] || '',
-        $range: config[1] || ''
-      }
+  = '{' S* args:VARIABLE_LEXICAL S* '}' {
+      var hole = serialization.types.HOLE.revive({
+        name: args[0] || '',
+        range: args[1] || ''
+      })
+      config.holes.push(hole)
+      return hole
     }
 
 VARIABLE_LEXICAL
@@ -112,6 +119,16 @@ VARIABLE_NAME
 VARIABLE_RANGE
   = '*' { return '' }
   / c:COMPONENT_CHAR+ { return c.join('') }
+
+
+RANGE_COMPONENT 'a range'
+  = '*:' c:COMPONENT_CHAR+ { return c.join('') } // TODO look up in type system
+  / '*:(' parts:RANGE_PART+ ')' { return parts }
+  / '*' { return [ [], [] ] }
+
+RANGE_PART
+  = c:COMPONENT_CHAR+ ',' { return c.join('') }
+  / '*' { return [] }
 
 
 BOOLEAN_COMPONENT 'a boolean'
@@ -208,23 +225,13 @@ DATE_CHAR
   / [:+] // allow + for timezons
 
 
-ARRAY_COMPONENT_EMPTY 'an empty array'
-  = 'array:' { return [] }
-
 ARRAY_COMPONENT 'an array'
-  = ARRAY_CTOR
-  / ARRAY_LITERAL
-
-ARRAY_CTOR
-  = 'array:' v:ARRAY_LITERAL { return v }
-  / 'array:' head:UNARY_COMPONENT { return [ head ] }
-
-ARRAY_LITERAL
   = head:UNARY_COMPONENT tail:ARRAY_NEXT_PART+ ','? {
       tail.unshift(head)
       return tail
     }
   / head:UNARY_COMPONENT ',' { return [ head ] }
+  
 
 ARRAY_NEXT_PART
   = ',' v:UNARY_COMPONENT { return v }
@@ -234,19 +241,6 @@ OBJECT_COMPONENT_EMPTY 'an empty object'
   = 'object:' { return {} }
 
 OBJECT_COMPONENT 'an object'
-  = kvs:( OBJECT_CTOR / OBJECT_LITERAL ) {
-    var obj = {}
-    for (var i = 0, length = kvs.length; i < length; ++i) {
-      var kv = kvs[i]
-      obj[kv[0]] = kv[1]
-    }
-    return obj
-  }
-
-OBJECT_CTOR
-  = 'object:' kvs:OBJECT_LITERAL { return kvs }
-
-OBJECT_LITERAL
   = head:OBJECT_ELEMENT tail:OBJECT_NEXT_PART+ ','? {
       tail.unshift(head)
       return tail
@@ -255,7 +249,7 @@ OBJECT_LITERAL
 
 
 OBJECT_NEXT_PART
-  = ',' kv:OBJECT_ELEMENT { return kv }
+  = ',' tuple:OBJECT_ELEMENT { return tuple }
 
 OBJECT_ELEMENT
   = k:STRING_COMPONENT '=' v:UNARY_COMPONENT { return [ k, v ] }

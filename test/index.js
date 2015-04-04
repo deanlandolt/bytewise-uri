@@ -137,7 +137,7 @@ for (var i = 0, len = fails.length; i < len;) {
 
 // general insanity
 
-uriEq('/foo/baz,/(-12.3+,(2344-10-10@,bar,d,(a,b,array:)))', [
+uriEq('/foo/baz,/(-12.3+,(2344-10-10@,bar,d,(a,b,())))', [
   'foo',
   [ 'baz' ],
   [
@@ -151,10 +151,10 @@ uriEq('/foo/baz,/(-12.3+,(2344-10-10@,bar,d,(a,b,array:)))', [
   ]
 ])
 
-var k = '/foo,/(345+,-12.3+,(2010-10-10T10:10:10-05:00@,bar,0x22,0x22+,0o777+,d\
-,(a,false:,(string%3Atrue,null:))))'
+var key = '/foo,/(345+,-12.3+,(2010-10-10T10:10:10-05:00@,bar,0x22,0x22+,0o777+\
+,d,(a,false:,(string%3Atrue,null:))))'
 
-uriEq(k, [
+uriEq(key, [
   [ 'foo' ],
   [
     345,

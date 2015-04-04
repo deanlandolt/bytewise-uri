@@ -2,7 +2,7 @@ var bytewise = require('bytewise-core')
 var parser = require('./parser')
 var serialization = require('./serialization')
 
-function Path(input) {
+function Uri(input) {
   //
   // check if invoked as template string tag
   //
@@ -13,7 +13,7 @@ function Path(input) {
     // short circuit if no interpolation args provided
     //
     if (len === 1)
-      return new Path(input.join(''))
+      return new Uri(input.join(''))
 
     //
     // create specially specially-named template variables for interpolations
@@ -30,20 +30,20 @@ function Path(input) {
     //
     // generate template from provided source and fill with interpolations
     //
-    return (new Path(source)).fill(interpolations)
+    return (new Uri(source)).fill(interpolations)
   }
 
   //
   // allow newless construction
   //
-  if (!(this instanceof Path))
-    return new Path(input)
+  if (!(this instanceof Uri))
+    return new Uri(input)
 
   this._parsed = serialization.parse(this._input = input)
 
 }
 
-Object.defineProperties(Path.prototype, {
+Object.defineProperties(Uri.prototype, {
   data: {
     get: function () {
       return this._parsed.data
@@ -58,9 +58,32 @@ Object.defineProperties(Path.prototype, {
   },
   key: {
     get: function () {
+      //
+      // queries ain't got not keys
+      //
+      var key
+      if (!this._parsed.index && !this._parsed.holes.length)
+        key = bytewise.encode(this.data)
+
+      Object.defineProperty(this, 'key', { value: key })
+
       // TODO: keep generated buffer private and return a copy on each call
-      return this._key || (this._key = bytewise.encode(this.data))
-    }
+      return key
+    },
+    configurable: true
+  },
+  query: {
+    get: function () {
+      //
+      // if not a query, return singleton range
+      //
+      var key = this.key
+      if (key)
+        return { gte: key, lte: key }
+
+      // TODO
+    },
+    configurable: true
   },
   toString: {
     value: function (codec) {
@@ -73,14 +96,11 @@ Object.defineProperties(Path.prototype, {
   uri: {
     get: function () {
       var uri = serialization.stringify(this.data, this._parsed)
-      // TODO
-      Object.defineProperty(this, 'uri', {
-        value: uri
-      })
+      Object.defineProperty(this, 'uri', { value: uri })
       return uri
     },
     configurable: true
   }
 })
 
-module.exports = Path
+module.exports = Uri

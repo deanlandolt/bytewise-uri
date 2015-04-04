@@ -8,8 +8,8 @@ var parser = require('./parser')
 // utilties for serializing uri strings
 //
 function getSerializer(instance) {
-  for (var name in types) {
-    var type = types[name]
+  for (var name in registry) {
+    var type = registry[name]
     var sort = type && type.stringify && type.sort
     if (sort && sort.is && sort.is(instance))
       return type
@@ -68,15 +68,10 @@ exports.parse = function (string) {
 // this method is responsible for doing type annotations and escapement
 
 //
-// boundary types
-//
-// TODO
-
-//
 // helper for registering serializers on nullary types
 //
 var registerNullary = function (name, sort) {
-  types[name] = {
+  registry[name] = {
     sort: sort,
     parse: function (string) {
       assert.equal(string.length, 0, 'Nullary constructor should be empty')
@@ -99,10 +94,59 @@ function encodeComponent(str) {
 }
 
 var sorts = base.sorts
-var types = exports.types = {}
+var registry = exports.types = {}
+
 
 //
-// register base types
+// boundary types
+//
+// TODO
+
+//
+// ranges
+//
+registry.RANGE = {
+  // sort: base.types.RANGE,
+  revive: function (string) {
+
+  },
+  stringify: function (instance) {
+
+  }
+}
+
+//
+// crappy little impl for template variable placeholders
+//
+function Hole(options) {
+  this.name = options.name
+  this.range = options.range
+}
+
+registry.HOLE = {
+  // sort: base.types.HOLE,
+  sort: {
+    is: function (instance) {
+      return instance instanceof Hole
+    }
+  },
+  revive: function (args) {
+    return new Hole(args)
+  },
+  stringify: function (instance) {
+    var name = instance.name
+    name = name ? encodeComponent(name) : '*'
+
+    var range = instance.range || ''
+    if (range)
+      range = ' : ' + encodeComponent(range)
+
+    return '{ ' + name + range + ' }'
+  }
+}
+
+//
+// base types
 //
 
 registerNullary('undefined', sorts.UNDEFINED)
@@ -114,7 +158,7 @@ registerNullary('null', sorts.NULL)
 registerNullary('true', sorts.BOOLEAN.sorts.TRUE)
 registerNullary('false', sorts.BOOLEAN.sorts.FALSE)
 
-types.number = {
+registry.number = {
   sort: sorts.NUMBER,
   parse: function (string) {
     return Number(string)
@@ -124,7 +168,7 @@ types.number = {
   }
 }
 
-types.date = {
+registry.date = {
   sort: sorts.DATE,
   parse: function (string) {
     return new Date(string)
@@ -135,7 +179,7 @@ types.date = {
   }
 }
 
-types.binary = {
+registry.binary = {
   sort: sorts.BINARY,
   parse: function (string) {
     return codecs.HEX.encode(string)
@@ -145,7 +189,7 @@ types.binary = {
   }
 }
 
-types.string = {
+registry.string = {
   sort: sorts.STRING,
   parse: function (string) {
     return string
@@ -155,36 +199,33 @@ types.string = {
   }
 }
 
-//
-// no `parse` method so no `array:...` constructor form
-//
-types.array = {
+registry.array = {
   sort: sorts.ARRAY,
+  //
+  // no `parse` method so no `array:...` constructor form
+  //
   stringify: function (instance, nested) {
-    var len = instance.length
+    var length = instance.length
     //
     // empty form
     //
-    if (!len)
+    if (!length)
       return '()'
 
     var elements = []
-    for (var i = 0; i < len; ++i) {
+    for (var i = 0; i < length; ++i) {
       elements.push(serialize(instance[i], true))
     }
 
     var result = elements.join(',')
-    if (nested)
+    if (nested || length === 1)
       return '(' + result + ')'
 
     return result
   }
 }
 
-//
-
-//
-types.object = {
+registry.object = {
   sort: sorts.OBJECT,
   //
   // no `parse` method so no `object:...` constructor form
@@ -199,7 +240,7 @@ types.object = {
   stringify: function (instance, nested) {
     var records = []
     for (var key in instance)
-      records.push(serialize(key) + '=' + serialize(instance[key]))
+      records.push(serialize(key) + '=' + serialize(instance[key], true))
 
     //
     // empty form
@@ -207,20 +248,10 @@ types.object = {
     if (!records.length)
       return 'object:'
 
-    return records.join(',')
+    var result = records.join(',')
+    if (nested || records.length === 1)
+      return '(' + result + ')'
 
-  }
-}
-
-//
-// ranges
-//
-types['*'] = {
-  // sort: base.types.RANGE,
-  parse: function (string) {
-
-  },
-  stringify: function (instance) {
-
+    return result
   }
 }
