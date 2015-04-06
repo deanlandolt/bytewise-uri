@@ -1,6 +1,6 @@
 # bytewise-uri
 
-This library implementats URI encoding scheme for tersely encoding bytewise-serializable data structures as URIs. Legitibility is optimized for the most common types used in keys -- strings, numbers, and top level arrays. If you generally stick to these types your keys should look fairly elegant.
+This library implements an URI encoding scheme for concisely encoding bytewise-serializable data structures as URI paths. Legibility is optimized for the most common types used in keys -- strings, numbers, and top level arrays. If you generally stick to these types your keys should look fairly elegant.
 
 This library also aims to embed as much of bytewise encoding capabilities into these URIs, so bear that in mind when reading the examples below. When designing keyspaces, the most important factor is that you are able to fully comprehend sort semantics of your various keys and queries over necessary key ranges.
 
