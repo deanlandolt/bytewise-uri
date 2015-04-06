@@ -225,7 +225,7 @@ Curly braces can be used to introduce template variables. These create placehold
 ```js
 tmpl = uri('/foo/bar/{ my%24var }/baz/quux'))
 eq(tmpl.fill({ my$var: 123 }).uri, '/foo/bar/123+/baz/quux')
-eq(tmpl.fill({ my$var: [ true, 'false' ] }).uri, '/foo/bar/true:,false/baz/quux')
+eq(tmpl.fill({ my$var: [ true, 'false' ] }).uri, '/foo/bar/boolean:true,false/baz/quux')
 ```
 
 Template variables may be unnamed:
@@ -431,7 +431,7 @@ In a more formal sense, a template with one variable could be thought of as the 
 The encoding function can also be used as a template string:
 
 ```js
-deepEq(uri`/true:/foo/null:`.data, [ true, 'foo', null ])
+deepEq(uri`/boolean:true/foo/null:`.data, [ true, 'foo', null ])
 ```
 
 Interpolated variables will be strongly typed when encoded:
@@ -451,7 +451,7 @@ Array variables will also be correctly encoded:
 ```js
 data = [ 'c/d', false, 'null:', 20*-3 ]
 key = uri`/a/b/${ ex }`
-eq(key.uri, '/a/b/c%Fd,false:,null%3A,-60+')
+eq(key.uri, '/a/b/c%Fd,boolean:false,null%3A,-60+')
 deepEq(k.data, data)
 ```
 
@@ -460,7 +460,7 @@ Even deeply nested arrays:
 ```js
 data = [ 'a/B', [ 'null:', [ [], true ] ], -Infinity ]
 key = uri`/${ data }/a/string:a@b.com`
-eq(key.uri, '/A%2FB,(null%3A,(array:,true:)),-Infinity+)/a/a%40b.com')
+eq(key.uri, '/A%2FB,(null%3A,(array:,boolean:true)),-Infinity+)/a/a%40b.com')
 deepEq(key.data, data)
 ```
 
@@ -469,7 +469,7 @@ This works with objects too:
 ```js
 data = { foo: true, baz: [ '', {}, 0, { a: 1 } ], bar: '0' }
 key = uri`/${ data }/s`
-eq(key.uri, '/foo=true:,baz=(string:,0+,object:,(a=1)),bar=0')
+eq(key.uri, '/foo=boolean:true,baz=(string:,0+,object:,(a=1)),bar=0')
 deepEq(key.data, data)
 ```
 
