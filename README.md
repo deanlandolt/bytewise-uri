@@ -473,9 +473,9 @@ eq(key.uri, '/foo=boolean:true,baz=(string:,0+,object:,(a=1)),bar=0')
 deepEq(key.data, data)
 ```
 
-String template interpolations are escaped using the underlying templating functionality of the system. As part of the interpolation process, an intermediate template is created with specially-keyed variables.
+String template interpolations are escaped using the underlying templating functionality of the system. As part of the interpolation process, an intermediate template is created with specially-keyed variables. This ensures that template interpolations may only represent atomic components -- they can't span across multiple components and accidentally "jump" the namespace, which eliminates potential injection attacks.
 
-Work requierd to do any actual escapement is deferred until an underlying URI string is requested, which may not ever be necessary. By leveraging the underlying templating system allows interpolation to simply replace template object placeholders with provided values. 
+The work required to do any actual escapement is deferred until the first time the underlying URI string is requested, which may be never (this should be the case for most usage patterns). By leveraging the underlying templating system allows interpolation to simply replace template object placeholders with provided values. 
 
 
 ### Templates and persistent immutable data
