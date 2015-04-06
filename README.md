@@ -86,7 +86,7 @@ deepEq(uri('binary:deadbeef').data, Buffer('deadbeef', 'hex'))
 
 ### Numbers
 
-The number constructor syntax does just what you'd:
+The number constructor syntax does what you might expect:
 
 ```js
 uriEq('number:-123.45', -123.45)
