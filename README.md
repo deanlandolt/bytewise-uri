@@ -29,7 +29,7 @@ The colon denotes a literal, and can be used to reference primitive types as lit
 
 ```js
 uriEq('null:', null)
-uriEq('undefined:', undefined)
+uriEq('void:', undefined)
 uriEq('boolean:true', true)
 uriEq('boolean:false', false)
 ```
@@ -286,10 +286,10 @@ uri('/foo/{ someVar }')
 This would almost correspond to the query:
 
 ```js
-{ gte: '/foo/null:', lte: '/foo/undefined:' }
+{ gte: '/foo/null:', lte: '/foo/void:' }
 ```
 
-Things can get messy if you're storing things with `undefined` keys (maybe for secondary index reasons, or maybe you're just batshit crazy...). To fix this we define out-of-bounds primitives that can be used in range queries to represent the absolute lower and upper bounds -- `0x00` and `0xFF`, respectively:
+Things can get messy if you're storing things with `void` keys (maybe for secondary index reasons, or maybe you're just batshit crazy...). To fix this we define out-of-bounds primitives that can be used in range queries to represent the absolute lower and upper bounds -- `0x00` and `0xFF`, respectively:
 
 This can be thought of as a query that ranges over *any* `foo` value:
 
