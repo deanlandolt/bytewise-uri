@@ -48,12 +48,12 @@ PctEncodedChar
 
 
 ReservedChar
-  = GenDelimChar / SubDelimChar
+  = GenDelimiterChar / SubDelimiterChar
 
-GenDelimChar
+GenDelimiterChar
   = [:/?#\[\]@]
 
-SubDelimChar
+SubDelimiterChar
   = [!$&'()*+,;=]
 
 
@@ -124,13 +124,26 @@ RangePart
 
 
 CtorComponent 'a constructor'
-  = head:ComponentChar+ ':' body:CtorBodyChar* {
-    var type = serialization.aliasedType(head.join(''))
+  = alias:CtorPrefix body:(GroupedComponent / CtorLexical) {
+    var type = serialization.aliasedType(alias)
     if (!type)
-      throw new Error('Uknown type alias: ' + head.join(''))
+      throw new Error('Uknown type constructor: ' + alias)
 
-    return type.serialization.parse(body.join(''))
+    if (typeof body === 'string')
+      return type.serialization.parse(body)
+
+    return type.serialization.revive(body)
   }
+
+CtorPrefix
+  = c:CtorNameChar+ ':' { return c.join('') }
+
+CtorNameChar
+  = ComponentChar
+  / '*' // allow ctor aliases to use '*' for range stuff
+
+CtorLexical
+  = c:(CtorBodyChar)* { return c.join('') }
 
 CtorBodyChar
   = ComponentChar

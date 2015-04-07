@@ -132,7 +132,9 @@ serialization.parse = function (string) {
 var sorts = base.sorts
 
 sorts.void.serialization = {
-  parse: function (string) {},
+  parse: function (string) {
+    return
+  },
   stringify: function () {
     return 'void:'
   }
