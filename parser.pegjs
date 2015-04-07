@@ -1,255 +1,199 @@
 {
-  var serialization = require('./serialization')
-  var config = { holes: [] }
+  var base = require('./base')
+  var serialization = base.serialization
 }
 
 
-START
-  = data:(INDEX_PATH / KEY_PATH / COMPONENT) {
-    // TODO: positional template holes?
-    config.data = data
-    return config
-  }
+Path
+  = PathSuffix
+  / PathInfix
+  / PathComponent
+  / PathPrefix
+  / PathKey
 
-INDEX_PATH
-  = data:KEY_PATH PATH_SEP { config.index = true; return data }
+PathPrefix
+  = data:PathPart+ '/' { return [ data, 'prefix' ] }
 
-KEY_PATH
-  = data:PATH_PART+ { config.path = true; return data }
+PathSuffix
+  = data:PathSuffixPart+ { return [ data, 'suffix' ] }
 
-PATH_PART
-  = PATH_SEP part:COMPONENT { return part }
+PathInfix
+  = head:Component data:PathPart+ {
+      data.unshift(head)
+      return [ data, 'infix' ]
+    }
 
-PATH_SEP
-  = '/'
+PathKey
+  = data:PathPart+ { return [ data, true ] }
 
-
-DIGIT
-  = [0-9]
-
-HEX_DIGIT
-  = [0-9a-fA-F]
-
-OCTAL_DIGIT
-  = [0-7]
-
-BINARY_DIGIT
-  = [01]
+PathComponent
+  = data:Component { return [ data, false ] }
 
 
-RESERVED_CHAR
-  = GEN_DELIM_CHAR / SUB_DELIM_CHAR
+PathPart
+  = '/' part:Component { return part }
 
-GEN_DELIM_CHAR
-  = [:/?#\[\]@]
+PathSuffixPart
+  = part:Component '/' { return part }
 
-SUB_DELIM_CHAR
-  = [!$&'()*+,;=]
+ComponentChar
+  = UnreservedChar
+  / PctEncodedChar
 
-PCT_ENCODED_CHAR
-  = str:$('%' HEX_DIGIT HEX_DIGIT) { return decodeURIComponent(str) }
-
-UNRESERVED_CHAR
+UnreservedChar
   = [a-zA-Z0-9\-\._~]
 
-COMPONENT_CHAR
-  = UNRESERVED_CHAR
-  / PCT_ENCODED_CHAR
+PctEncodedChar
+  = str:$('%' HexDigit HexDigit) { return decodeURIComponent(str) }
+
+
+ReservedChar
+  = GenDelimChar / SubDelimChar
+
+GenDelimChar
+  = [:/?#\[\]@]
+
+SubDelimChar
+  = [!$&'()*+,;=]
+
 
 S
   = ' '
 
+Digit
+  = [0-9]
 
-COMPONENT
-  = VARIADIC_COMPONENT
-  / UNARY_COMPONENT
+HexDigit
+  = [0-9a-fA-F]
 
-VARIADIC_COMPONENT
-  = ARRAY_COMPONENT
-  / tuples:OBJECT_COMPONENT {
-    // TODO: defer to reviver in type system
-    var obj = {}
-    for (var i = 0, length = tuples.length; i < length; ++i) {
-      var tuple = tuples[i]
-      obj[tuple[0]] = tuple[1]
-    }
-    return obj
-  }
+OctalDigit
+  = [0-7]
 
-UNARY_COMPONENT
-  = NULLARY_COMPONENT
-  / GROUPED_COMPONENT
-  / VARIABLE_COMPONENT
-  / NUMBER_COMPONENT
-  / DATE_COMPONENT
-  / BINARY_COMPONENT
-  / STRING_COMPONENT
-
-NULLARY_COMPONENT
-  = OBJECT_COMPONENT_EMPTY
-  / BOOLEAN_COMPONENT
-  / NULL_COMPONENT
-  / UNDEFINED_COMPONENT
+BinaryDigit
+  = [01]
 
 
-GROUPED_COMPONENT 'a group'
-  = '(' val:VARIADIC_COMPONENT ')' { return val }
-  / '(' val:UNARY_COMPONENT ')' { return [ val ] }
-  / '()' { return [] }
+Component
+  = RecursiveComponent
+  / AtomicComponent
+
+RecursiveComponent
+  = args:ArrayLiteral { return serialization.ARRAY.revive(args) }
+  / args:ObjectLiteral { return serialization.OBJECT.revive(args) }
+
+AtomicComponent
+  = GroupedComponent
+  / DateLiteral
+  / NumberLiteral
+  / CtorComponent
+  / VariableComponent
+  / StringLiteral
 
 
-VARIABLE_COMPONENT 'a template variable'
-  = '{' S* args:VARIABLE_LEXICAL S* '}' {
-      var hole = serialization.types.HOLE.revive({
-        name: args[0] || '',
-        range: args[1] || ''
-      })
-      config.holes.push(hole)
-      return hole
+GroupedComponent 'a group'
+  = '(' val:RecursiveComponent ')' { return val }
+  / '(' val:AtomicComponent ')' { return [ val ] }
+
+
+VariableComponent 'a template variable'
+  = '{' S* args:VariableLexical S* '}' {
+      return serialization.VARIABLE.revive(args)
     }
 
-VARIABLE_LEXICAL
-  = name:VARIABLE_NAME S* ':' S* range:VARIABLE_RANGE { return [ name, range ] }
-  / name:VARIABLE_NAME { return [ name ] }
+VariableLexical
+  = name:VariableName S* ':' S* range:VariableRange { return [ name, range ] }
+  / name:VariableName { return [ name ] }
 
-VARIABLE_NAME
+VariableName
   = '*' { return '' }
-  / c:COMPONENT_CHAR+ { return c.join('') }
+  / c:ComponentChar+ { return c.join('') }
 
-VARIABLE_RANGE
+VariableRange
   = '*' { return '' }
-  / c:COMPONENT_CHAR+ { return c.join('') }
+  / c:ComponentChar+ { return c.join('') }
 
 
-RANGE_COMPONENT 'a range'
-  = '*:' c:COMPONENT_CHAR+ { return c.join('') } // TODO look up in type system
-  / '*:(' parts:RANGE_PART+ ')' { return parts }
+RangeComponent 'a range'
+  = '*:' c:ComponentChar+ { return c.join('') } // TODO look up in type system
+  / '*:(' parts:RangePart+ ')' { return parts }
   / '*' { return [ [], [] ] }
 
-RANGE_PART
-  = c:COMPONENT_CHAR+ ',' { return c.join('') }
+RangePart
+  = c:ComponentChar+ ',' { return c.join('') }
   / '*' { return [] }
 
 
-BOOLEAN_COMPONENT 'a boolean'
-  = 'true:' { return true }
-  / 'false:' { return false }
+CtorComponent 'a constructor'
+  = head:ComponentChar+ ':' body:CtorBodyChar* {
+    var type = serialization.aliasedType(head.join(''))
+    if (!type)
+      throw new Error('Uknown type alias: ' + head.join(''))
 
+    return type.serialization.parse(body.join(''))
+  }
 
-NULL_COMPONENT 'null'
-  = 'null:' { return null }
-
-
-UNDEFINED_COMPONENT 'undefined'
-  = 'undefined:' { return }
-
-
-BINARY_COMPONENT 'binary data'
-  = 'binary:' c:HEX_DIGIT* {
-      var str = c.join('')
-      return codecs ? codecs.HEX.encode(str) : ('BINARY::' + str)
-    }
-
-
-STRING_COMPONENT 'a string'
-  = 'string:' c:STRING_CTOR_CHAR* { return c.join('') } // string ctor
-  / c:COMPONENT_CHAR+ { return c.join('') } // string literal
-
-STRING_CTOR_CHAR
-  = COMPONENT_CHAR
+CtorBodyChar
+  = ComponentChar
   / [@+] // allow some extra chars in ctor-prefixed forms
 
 
-NUMBER_COMPONENT 'a number'
-  = NUMBER_EXTENDED_CTOR
-  / NUMBER_EXTENDED_LITERAL
-  / NUMBER_BASE
-
-NUMBER_EXTENDED_CTOR
-  = 'number:' v:(NUMBER_OCTAL_SYNTAX / NUMBER_BINARY_SYNTAX) { return v }
-
-NUMBER_EXTENDED_LITERAL
-  = v:(NUMBER_OCTAL_SYNTAX / NUMBER_BINARY_SYNTAX) '+' { return v }
-
-NUMBER_OCTAL_SYNTAX
-  = '0' [oO] str:OCTAL_DIGIT+ { return parseInt(str.join(''), 8) }
-
-NUMBER_BINARY_SYNTAX
-  = '0' [bB] str:BINARY_DIGIT+ { return parseInt(str.join(''), 2) }
-
-NUMBER_BASE
-  = str:NUMBER_LEXICAL {
-    // TODO: defer to parser provided by type system
-    var value = Number(str)
-
-    // test for invalid
-    if (value !== value)
-      throw new TypeError('Invalid Number: ' + str)
-
-    return value
-  }
-
-NUMBER_LEXICAL
-  = 'number:' c:COMPONENT_CHAR+ { return c.join('') } // number ctor
-  / c:COMPONENT_CHAR+ '+' { return c.join('') } // number literal
+StringLiteral 'a string'
+  = c:ComponentChar+ { return c.join('') }
 
 
-DATE_COMPONENT 'a date'
-  = str:DATE_LEXICAL {
-      // TODO: defer to parser provided by type system
-      var value = new Date(str)
-
-      // test for invalid
-      if (+value !== +value)
-        throw new TypeError('Invalid Date: ' + str)
-
-      return value
+NumberLiteral 'a number'
+  = NumberHexLiteral
+  / NumberOctalLiteral
+  / NumberBinaryLiteral
+  / c:ComponentChar+ '+' {
+      return serialization.NUMBER.revive([ c.join('') ])
     }
 
-DATE_LEXICAL
-  = 'date:' str:DATE_LEXICAL_BASE { return str } // date ctor
-  / str:DATE_LEXICAL_BASE '@' { return str } // date literal
+NumberHexLiteral
+  = '0' [xX] str:HexDigit+ '+' { return parseInt(str.join(''), 16) }
 
-// dates requires 4 digit year
-DATE_LEXICAL_BASE
-  = year:DATE_YEAR rest:DATE_REST { return year + rest }
+NumberOctalLiteral
+  = '0' [oO] str:OctalDigit+ '+' { return parseInt(str.join(''), 8) }
 
-DATE_YEAR
-  = c:(DIGIT DIGIT DIGIT DIGIT) { return c.join('') }
-
-DATE_REST
-  = c:DATE_CHAR* { return c.join('') }
-
-DATE_CHAR
-  = COMPONENT_CHAR
-  / [:+] // allow + for timezons
+NumberBinaryLiteral
+  = '0' [bB] str:BinaryDigit+ '+' { return parseInt(str.join(''), 2) }
 
 
-ARRAY_COMPONENT 'an array'
-  = head:UNARY_COMPONENT tail:ARRAY_NEXT_PART+ ','? {
+DateLiteral 'a date'
+  = year:DateYear rest:DateChar* '@' {
+      return serialization.DATE.revive([ year + rest.join('') ])
+    }
+
+DateYear
+  = c:(Digit Digit Digit Digit) { return c.join('') }
+
+DateChar
+  = ComponentChar
+  / [:+] // allow + for timezone offset
+
+
+ArrayLiteral 'an array'
+  = head:AtomicComponent tail:ArrayNextPart+ ','? {
       tail.unshift(head)
       return tail
     }
-  / head:UNARY_COMPONENT ',' { return [ head ] }
+  / head:AtomicComponent ',' { return [ head ] }
   
 
-ARRAY_NEXT_PART
-  = ',' v:UNARY_COMPONENT { return v }
+ArrayNextPart
+  = ',' v:AtomicComponent { return v }
 
 
-OBJECT_COMPONENT_EMPTY 'an empty object'
-  = 'object:' { return {} }
-
-OBJECT_COMPONENT 'an object'
-  = head:OBJECT_ELEMENT tail:OBJECT_NEXT_PART+ ','? {
+ObjectLiteral 'an object'
+  = head:ObjectLexicalElement tail:ObjectNextPart+ ','? {
       tail.unshift(head)
       return tail
     }
-  / head:OBJECT_ELEMENT ','? { return [ head ] }
+  / head:ObjectLexicalElement ','? { return [ head ] }
 
 
-OBJECT_NEXT_PART
-  = ',' tuple:OBJECT_ELEMENT { return tuple }
+ObjectNextPart
+  = ',' pair:ObjectLexicalElement { return pair }
 
-OBJECT_ELEMENT
-  = k:STRING_COMPONENT '=' v:UNARY_COMPONENT { return [ k, v ] }
+ObjectLexicalElement
+  = k:StringLiteral '=' v:AtomicComponent { return [ k, v ] }

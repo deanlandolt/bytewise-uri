@@ -1,18 +1,33 @@
+var defprop = require('defprop')
 var bytewise = require('bytewise-core')
-var parser = require('./parser')
-var serialization = require('./serialization')
+var base = require('./base')
+
+var PRIVATE_SIGIL = {}
+
+function process(data, pathType) {
+  defprop.value(this, 'data', data)
+  defprop.value(this, 'pathType', pathType || false)
+
+  // TODO: walk data for ranges and template variables
+}
 
 function Uri(input) {
   //
-  // check if invoked as template string tag
+  // check for special invocation for internal constructions
+  //
+  if (input === PRIVATE_SIGIL)
+    return process.call(this, arguments[1], arguments[2])
+
+  //
+  // check for invokation as template string tag
   //
   if (Array.isArray(input)) {
-    var len = arguments.length
+    var length = arguments.length
 
     //
-    // short circuit if no interpolation args provided
+    // short circuit for no interpolations
     //
-    if (len === 1)
+    if (length === 1)
       return new Uri(input.join(''))
 
     //
@@ -21,7 +36,7 @@ function Uri(input) {
     var source = input[0];
     var unique = (Math.random() + '').slice(2)
     var interpolations = {}
-    for (var i = 1; i < len; ++i) {
+    for (var i = 1; i < length; ++i) {
       var name = '{' + i + '~' + unique + '}'
       source += name + input[i]
       interpolations[name] = arguments[i]
@@ -39,68 +54,65 @@ function Uri(input) {
   if (!(this instanceof Uri))
     return new Uri(input)
 
-  this._parsed = serialization.parse(this._input = input)
-
+  defprop.value(this, '_input', input)
+  return process.apply(this, base.serialization.parse(input))
 }
 
-Object.defineProperties(Uri.prototype, {
-  data: {
-    get: function () {
-      return this._parsed.data
-    }
-  },
-  fill: {
-    value: function (args) {
-      // TODO
-      console.log('TODO: fill args:', args)
-      return this
-    }
-  },
-  key: {
-    get: function () {
-      //
-      // queries ain't got not keys
-      //
-      var key
-      if (!this._parsed.index && !this._parsed.holes.length)
-        key = bytewise.encode(this.data)
+//
+// generate a new uri instance directly from provided data
+//
+Uri.data = function (data, pathType) {
+  return new Uri(PRIVATE_SIGIL, data, pathType)
+}
 
-      Object.defineProperty(this, 'key', { value: key })
+var proto = Uri.prototype
 
-      // TODO: keep generated buffer private and return a copy on each call
-      return key
-    },
-    configurable: true
-  },
-  query: {
-    get: function () {
-      //
-      // if not a query, return singleton range
-      //
-      var key = this.key
-      if (key)
-        return { gte: key, lte: key }
+//
+// a key value  can only be generated for non-index types w/o range quantifiers
+//
+defprop.memoize(proto, 'hasKey', function () {
+  return typeof this.pathType === 'boolean' && !this.variables && !this.ranges
+})
 
-      // TODO
-    },
-    configurable: true
-  },
-  toString: {
-    value: function (codec) {
-      //
-      // default to hex to preserve order in case of accidental string coercion
-      //
-      return this.key.toString(codec || 'hex')
-    }
-  },
-  uri: {
-    get: function () {
-      var uri = serialization.stringify(this.data, this._parsed)
-      Object.defineProperty(this, 'uri', { value: uri })
-      return uri
-    },
-    configurable: true
-  }
+//
+// resolves the key associated with instance, if its type if it's not a range
+//
+defprop.memoize(proto, 'key', function () {
+  // TODO: keep generated buffer private and return a copy on each call
+  return this.hasKey ? bytewise.encode(this.data) : null
+})
+
+defprop.memoize(proto, 'uri', function () {
+  return base.serialization.stringify(this.data, this.pathType)
+})
+
+//
+// default to hex to preserve order in case of accidental string coercion
+//
+defprop.value(proto, 'toString', function (codec) {
+  return this.key.toString(codec || 'hex')
+})
+
+//
+// populate template variables, by name or position
+//
+defprop.value(proto, 'fill', function () {
+  var data = this.data
+  // TODO: deep copy, replace template variables with args
+  return Uri.data(data)
+})
+
+//
+// query descriptor object defined by uri
+//
+defprop.value(proto, 'query', function () {
+  //
+  // if type has an associated key, return singleton interval
+  //
+  if (this.hasKey)
+    return { gte: this, lte: this }
+
+  // TODO: templates and ranges
 })
 
 module.exports = Uri
