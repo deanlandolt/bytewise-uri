@@ -1,6 +1,6 @@
 {
   "name": "bytewise-uri",
-  "version": "0.1.0",
+  "version": "0.2.0-pre",
   "description": "URI encoding scheme for bytewise key paths",
   "main": "index.js",
   "dependencies": {
