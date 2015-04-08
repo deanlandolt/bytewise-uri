@@ -1,6 +1,6 @@
+var assert = require('assert')
 var uri = require('../')
 var base = require('../base')
-var assert = require('assert')
 
 var eq = assert.strictEqual
 var deepEq = assert.deepEqual
@@ -10,7 +10,8 @@ var VARIABLE = base.serialization.VARIABLE
 function throws(input) {
   assert.throws(function () { uri(input) }, 'should throw: "' + input + '"')
 }
-
+console.log('💩\n\n\nasdfsadf')
+console.log(encodeURIComponent('💩'))
 //
 // round-trip some uris to see how well serialization holds up
 //
@@ -156,24 +157,55 @@ var pairs = [
   //
   // strings
   //
-  'foo',
+  'string:foo',
     'foo',
-  'foo%2Fbar',
+  'foo',
+    throws,
+  '/foo',
+    [ 'foo' ],
+  '/string:foo',
+    [ 'foo' ],
+  'string:foo%2Fbar',
     'foo/bar',
-  'null',
-    'null',
-  'undefined',
-    'undefined',
-  'boolean%3Atrue',
-    'boolean:true',
-  'foo%2Bbar%40baz.com',
-    'foo+bar@baz.com',
-  'string:foo+bar@baz.com',
-    'foo+bar@baz.com',
+  '/foo%2Fbar',
+    [ 'foo/bar' ],
+  'string:a+b',
+    'a+b',
+  'string:a@b',
+    'a@b',
+
+  // reserved chars -- !$&'()*+,;=:/?#[]@
+  'string:a,',
+    throws,
+  'string:a;',
+    throws,
+  'string:a=',
+    throws,
+  'string:a%',
+    throws,
+  '/a+b',
+    throws,
+  '/a@b',
+    throws,
+  '/null',
+    [ 'null' ],
+  '/void',
+    [ 'void' ],
+  '/boolean%3Atrue',
+    [ 'boolean:true' ],
   'string:null',
     'null',
+  '/string:null',
+    [ 'null' ],
   'string:null:',
     throws,
+  '/string:null:',
+    throws,
+  // TODO
+  // 'string:💩',
+  //   '💩',
+  // 'string:%F0%9F%92%A9',
+  //   '💩',
 
   //
   // binary
@@ -190,64 +222,86 @@ var pairs = [
   //
   // arrays
   //
-  'array:',
-    [],
-  'array:a',
-    throws,
-  'array:a,',
-    throws,
-  'array:a,b',
-    throws,
-  'a,',
+  '/()',
+    [ [] ]
+  '/a,',
     [ 'a' ],
-  'a,b',
-    [ 'a', 'b' ],
-  '(a)',
-    [ 'a' ],
-  '(a,)',
-    [ 'a' ],
-  '(a,b)',
-    [ 'a', 'b' ],
-  '(a,b),',
+  '/a,b',
     [ [ 'a', 'b' ] ],
-  '((a,b))',
+  '/(a)',
+    [ [ 'a' ] ],
+  '/(a,)',
+    [ [ 'a' ] ],
+  '/(a,b)',
     [ [ 'a', 'b' ] ],
-  '((a,b)),',
+  '/(a,b),',
+    [ [ 'a', 'b' ] ],
+  '/((a,b))',
     [ [ [ 'a', 'b' ] ] ],
-  '-42+,a',
-    [ -42, 'a' ],
-  '-42+,a,b',
-    [ -42, 'a', 'b' ],
-  '-42+,(a)',
-    [ -42, [ 'a' ] ],
-  '-42+,(a,b)',
-    [ -42, [ 'a', 'b' ] ],
-  '-42+,(a,b,)',
-    [ -42, [ 'a', 'b' ] ],
-  'foo,bar,(baz,quux,123+)',
-    [ 'foo', 'bar', [ 'baz', 'quux', 123 ] ],
-  'foo,bar,(baz,quux,123+,),',
-    [ 'foo', 'bar', [ 'baz', 'quux', 123 ] ],
-  'foo,bar,(baz,(quux,123+))',
-    [ 'foo', 'bar', [ 'baz', [ 'quux', 123 ] ] ],
-  'foo,bar,(baz,(quux,123+),),',
-    [ 'foo', 'bar', [ 'baz', [ 'quux', 123 ] ] ],
+  '/((a,b)),',
+    [ [ [ [ 'a', 'b' ] ] ] ],
+  '/-42+,a',
+    [ [ -42, 'a' ] ],
+  '/-42+,a,b',
+    [ [ -42, 'a', 'b' ] ],
+  '/-42+,(a)',
+    [ [ -42, [ 'a' ] ] ],
+  '/-42+,(a,b)',
+    [ [ -42, [ 'a', 'b' ] ] ],
+  '/-42+,(a,b,)',
+    [ [ -42, [ 'a', 'b' ] ] ],
+  '/foo,bar,(baz,quux,123+)',
+    [ [ 'foo', 'bar', [ 'baz', 'quux', 123 ] ] ],
+  '/foo,bar,(baz,quux,123+,),',
+    [ [ 'foo', 'bar', [ 'baz', 'quux', 123 ] ] ],
+  '/foo,bar,(baz,(quux,123+))',
+    [ [ 'foo', 'bar', [ 'baz', [ 'quux', 123 ] ] ] ],
+  '/foo,bar,(baz,(quux,123+),),',
+    [ [ 'foo', 'bar', [ 'baz', [ 'quux', 123 ] ] ] ],
+
+  // no holes
+  '/,b',
+    throws,
+  '/a,,',
+    throws,
+  '/a,,b',
+    throws,
 
   // structured
+  'array:',
+    throws,
+  'array:a',
+    throws,
+  'array:(',
+    throws,
+  'array:)',
+    throws,
+  'array:()',
+    [],
   'array:(1,2+,3)',
     [ '1', 2, '3' ],
+  'array:(1,2+,(3))',
+    [ '1', 2, [ '3' ] ],
   'array:(1,2+,3',
     throws,
   'array:1,2+,3)',
     throws,
   'array:1,2+,3',
     throws,
+  'array:(1,2+,(3)',
+    throws,
 
   //
   // objects
   //
-  'object:',
-    {},
+  'a=',
+    { a: void 0 },
+  'a=,',
+    { a: void 0 },
+  'a=b',
+    { a: 'b' },
+  'a=b,',
+    { a: 'b' },
   'a=1+',
     { a: 1 },
   'a=1+,b=2',
@@ -267,6 +321,28 @@ var pairs = [
   'a=1+,b=2,c=(d=foo),d=(bar=baz)',
     { a: 1, b: '2', c: { d: 'foo' }, d: { bar: 'baz' } },
 
+  // no holes
+  ',a=b',
+    throws,
+  'a=b,,',
+    throws,
+  'a=b,,c=d',
+    throws,
+
+  // structured
+  'object:',
+    throws,
+  'object:(',
+    throws,
+  'object:',
+    throws,
+  'object:(a)',
+    throws,
+  'object:()',
+    {},
+  'object:(a=)',
+    { a: void 0 },
+
   //
   // key paths
   //
@@ -280,8 +356,18 @@ var pairs = [
     [ 'foo', new Date('2000') ],
   '/foo/string:/bar',
     [ 'foo', '', 'bar' ],
-  '/foo//bar',
-    throws,
+  // '/foo//bar',
+  //   [ 'foo', '', 'bar' ],
+  // '//foo/bar',
+  //   [ '', 'foo', 'bar' ],
+  // '/./foo/bar',
+  //   [ 'foo', 'bar' ],
+  // '/foo/./bar',
+  //   [ 'foo', 'bar' ],
+  // '/../foo/bar',
+  //   [ 'foo', 'bar' ],
+  // '/foo/../bar',
+  //   [ 'bar' ],
 
   //
   // prefix, suffix, infix paths
@@ -301,62 +387,105 @@ var pairs = [
   // //
   // // sets (order-preserving)
   // //
-  // 'a&', // set('a')
-  // 'a&a', // set('a')
-  // 'a&b', // set('a', 'b')
-  // 'b&a', // set('b', 'a')
-  // 'a&b&', // set('a', 'b')
-  // 'a&b&a', // set('a', 'b')
-  // 'a&b&(a)', // set('a', 'b', [ 'a' ])
-  // 'a&b&(a&)', // set('a', 'b', set('a'))
+  // 'a&',
+  //   types.set('a'),
+  // 'a&a',
+  //   types.set('a'),
+  // 'a&b',
+  //   types.set('a', 'b'),
+  // 'b&a',
+  //   types.set('b', 'a'),
+  // 'a&b&',
+  //   types.set('a', 'b'),
+  // 'a&b&a',
+  //   types.set('a', 'b'),
+  // 'a&b&(a)',
+  //   types.set('a', 'b', [ 'a' ]),
+  // 'a&b&(a&)',
+  //   types.set('a', 'b', set('a')),
 
   // //
   // // tuples (shortlex-sorted arrays)
   // //
-  // 'a;', // tuple('a')
-  // '/a;', // [ tuple('a') ]
-  // '/foo/a;', // [ 'foo', tuple('a') ]
-  // '/foo/a;b', // [ 'foo', tuple('a', 'b') ]
-  // '/foo/b;a', // [ 'foo', tuple('b', 'a') ]
-  // '/foo/a;b;', // [ 'foo', tuple('a', 'b') ]
-  // '/foo/a;b;c', // [ 'foo', tuple('a', 'b', 'c') ]
-  // '/foo/2000;', // [ 'foo', tuple('2000') ]
-  // '/foo/2000;02', // [ 'foo', tuple('2000', '02') ]
-  // '/foo/2000;02;', // [ 'foo', tuple('2000', '02') ]
-  // '/foo/2000;02;03', // [ 'foo', tuple('2000', '02', '03') ]
-  // '/foo/US;', // [ 'foo', tuple('US') ]
-  // '/foo/US;MD', // [ 'foo', tuple('US', 'MD') ]
-  // '/foo/US;(MD)', // [ 'foo', tuple('US'), [ 'MD' ] ]
-  // '/foo/US;(MD;)', // [ 'foo', tuple('US', tuple('MD')) ]
+  // 'a;', // tuple('a'),
+  // '/a;', // [ tuple('a') ],
+  // '/foo/a;', // [ 'foo', tuple('a') ],
+  // '/foo/a;b', // [ 'foo', tuple('a', 'b') ],
+  // '/foo/b;a', // [ 'foo', tuple('b', 'a') ],
+  // '/foo/a;b;', // [ 'foo', tuple('a', 'b') ],
+  // '/foo/a;b;c', // [ 'foo', tuple('a', 'b', 'c') ],
+  // '/foo/2000;', // [ 'foo', tuple('2000') ],
+  // '/foo/2000;02', // [ 'foo', tuple('2000', '02') ],
+  // '/foo/2000;02;', // [ 'foo', tuple('2000', '02') ],
+  // '/foo/2000;02;03', // [ 'foo', tuple('2000', '02', '03') ],
+  // '/foo/US;', // [ 'foo', tuple('US') ],
+  // '/foo/US;MD', // [ 'foo', tuple('US', 'MD') ],
+  // '/foo/US;(MD)', // [ 'foo', tuple('US'), [ 'MD' ] ],
+  // '/foo/US;(MD;)', // [ 'foo', tuple('US', tuple('MD')) ],
 
   // //
   // // records (shortlex-sorted objects)
   // //
-  // 'a=b;', // record([ 'a', 'b' ])
-  // 'a=b;c=d', // record([ 'a', 'b' ], [ 'c', 'd'] )
-  // 'a=b;c=d;', // record([ 'a', 'b' ], [ 'c', 'd' ])
-  // 'a=b;c=d;e=0+', // record([ 'a', 'b' ], [ 'c', 'd' ], [ 'e', 0 ])
-  // 'a=b;c=(0+)', // record([ 'a', 'b' ], 'c', [ 0 ])
-  // 'a=b;c=(0+,)', // record([ 'a', 'b' ], 'c', [ 0 ])
-  // 'a=b;c=(0+;)', // record([ 'a', 'b' ], 'c', tuple(0))
-  // 'a=b;c=(0+,@2000)', // record([ 'a', 'b' ], 'c', [ 0, new Date('2000') ])
-  // 'a=b;c=(0+;@2000)', // record([ 'a', 'b' ], [ 'c', tuple([ new Date('2000') ]) ])
-  // 'a=b;c=(d=0+;)', // record([ 'a', 'b' ], [ 'c', record([ 'd', 0 ]) ])
+  // 'a=b;',
+  //   types.record([ 'a', 'b' ]),
+  // 'a=b;c=d',
+  //   types.record([ 'a', 'b' ], [ 'c', 'd'] ),
+  // 'a=b;c=d;',
+  //   types.record([ 'a', 'b' ], [ 'c', 'd' ]),
+  // 'a=b;c=d;e=0+',
+  //   types.record([ 'a', 'b' ], [ 'c', 'd' ], [ 'e', 0 ]),
+  // 'a=b;c=(0+)',
+  //   types.record([ 'a', 'b' ], 'c', [ 0 ]),
+  // 'a=b;c=(0+,)',
+  //   types.record([ 'a', 'b' ], 'c', [ 0 ]),
+  // 'a=b;c=(0+;)',
+  //   types.record([ 'a', 'b' ], 'c', types.tuple(0)),
+  // 'a=b;c=(0+,@2000)',
+  //   types.record([ 'a', 'b' ], 'c', [ 0, new Date('2000') ]),
+  // 'a=b;c=(0+;@2000)',
+  //   types.record([ 'a', 'b' ], [ 'c', types.tuple([ new Date('2000') ]) ]),
+  // 'a=b;c=(d=0+;)',
+  //   types.record([ 'a', 'b' ], [ 'c', types.record([ 'd', 0 ]) ]),
 
   // //
   // // ranges
   // //
-  // '*',
-  // '*:(*,*)',
+  '*',
+    RANGE.revive([]),
+  'string:*',
+    RANGE.revive([ base.serialization.getType('string') ]),
+  'number:*',
+    RANGE.revive([ base.serialization.getType('number') ]),
+  'foo:*',
+    throws,
+  '*(*,*)',
+    RANGE.revive([]),
+  '*:(*,*)',
+    throws,
+  // lower and upper bound args required
+  '*(*)',
+    throws,
+  '*(*,)',
+    throws,
+  '*(,*)',
+    throws,
+  'number:*',
+    RANGE.revive([ base.serialization.getType('number') ]),
+  'number:*',
+    uri('*(number:*,number:*').data,
 
-  // // number
-  // '*:number',
-  // '*:array:',
-  // '*:(0+,0+)',
-  // '*:(number:0,number:0)',
-  // '*:(!0+,1+)',
-  // '*:(0+,!1+)',
-  // '*:(number:0,!number:1)',
+  // '*(number)',
+  // '*(array)',
+  // '*(0+,0+)',
+  // '*(number:0,number:0)',
+  // '*(!0+,1+)',
+  // '*(0+,!1+)',
+  // '*(number:0,!number:1)',
+  // '*(number:*)',
+  // '*(number:*,number:*)',
+  //   [  ], // TODO
+  // 'number:*(!3,!5)',
+  //   [  ], // [ range(3, 5) ],
 
   //
   // templates
@@ -373,33 +502,49 @@ var pairs = [
     VARIABLE.revive([ 'a' ]),
   '{    a    }',
     VARIABLE.revive([ 'a' ]),
-  '{ * : string}',
+  '{*:string}',
     VARIABLE.revive([ '', 'string' ]),
-  '{ a : string}',
+  '{ *:string }',
+    VARIABLE.revive([ '', 'string' ]),
+  '{    *:string    }',
+    VARIABLE.revive([ '', 'string' ]),
+  '{ * :string }',
+    throws,
+  '{ *: string }',
+    throws,
+  '{ * : string }',
+    throws,
+  '{ a : string }',
+    throws,
+  '{    a:string    }',
     VARIABLE.revive([ 'a', 'string' ]),
-  '{    a    :    string    }',
-    VARIABLE.revive([ 'a', 'string' ]),
-  '/{ a%2fb:number }/',
+  '{ *:foo }',
+    throws,
+  '{ a:foo }',
+    throws,
+  '{ a%2fb:number }',
+    VARIABLE.revive([ 'a/b', 'number' ]),
+  '/{ a%2fb:number }',
     [ VARIABLE.revive([ 'a/b', 'number' ]) ],
-  '/foo/{ a : string }',
+  '/foo/{ a:string }',
     [ 'foo', VARIABLE.revive([ 'a', 'string' ]) ],
-  '/foo/({ a : string })',
+  '/foo/({ a:string })',
     [ 'foo', [ VARIABLE.revive([ 'a', 'string' ]) ] ],
-  '/foo/({ a : string },bar)',
+  '/foo/({ a:string },bar)',
     [ 'foo', [ VARIABLE.revive([ 'a', 'string' ]), 'bar' ] ],
   '/foo/(bar,{ a:string })',
     [ 'foo', [ 'bar', VARIABLE.revive([ 'a', 'string' ]) ] ],
-  '/foo/(bar,{ a : string },baz)',
+  '/foo/(bar,{ a:string },baz)',
     [ 'foo', [ 'bar', VARIABLE.revive([ 'a', 'string' ]), 'baz' ] ],
-  '/foo/(bar,({ a : string }),baz)',
+  '/foo/(bar,({ a:string }),baz)',
     [ 'foo', [ 'bar', [ VARIABLE.revive([ 'a', 'string' ]) ], 'baz' ] ],
-  '/foo/(bar,(array:,({ a :string }),),baz,)',
+  '/foo/(bar,(array:,({ a:string }),),baz,)',
     [ 'foo', [ 'bar', [ [], [ VARIABLE.revive([ 'a', 'string' ]) ] ], 'baz' ] ],
-  '/foo/(bar,{ * : foo },((a={ * }),(k={ a : string }),),baz,)',
+  '/foo/(bar,{ *:number },((a={ * }),(k={ a:string }),),baz,)',
     [
       'foo', [
         'bar',
-        VARIABLE.revive([ '', 'foo' ]),
+        VARIABLE.revive([ '', 'number' ]),
         [
           { a: VARIABLE.revive([]) },
           { k: VARIABLE.revive([ 'a', 'string' ]) }
@@ -422,7 +567,7 @@ for (var i = 0, len = pairs.length; i < len; i += 2) {
   var input = pairs[i]
   var expected = pairs[i + 1]
 
-  // console.log('\ninput:', input)
+  console.log('\ninput:', input)
 
   if (expected === throws) {
     throws(input)
@@ -430,11 +575,13 @@ for (var i = 0, len = pairs.length; i < len; i += 2) {
   }
 
   var key1 = uri(input)
-  // console.log('uri', key1.uri)
+  console.log('uri', key1.uri)
   deepEq(key1.data, expected)
 
+  //
   // serialize expected data as uri and compare
-  eq(uri.data(expected, input[0] === '/').uri, key1.uri)
+  //
+  eq(key1.uri, uri.data(expected, input[0] === '/').uri)
 
   var key2 = uri(key1.uri)
 

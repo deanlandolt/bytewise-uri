@@ -1,4 +1,5 @@
 {
+  var assert = require('assert')
   var base = require('./base')
   var serialization = base.serialization
 }
@@ -18,7 +19,8 @@ PathSuffix
   = data:PathSuffixPart+ { return [ data, 'suffix' ] }
 
 PathInfix
-  = head:Component data:PathPart+ {
+  = head:Component data:PathPart+
+    {
       data.unshift(head)
       return [ data, 'infix' ]
     }
@@ -43,6 +45,7 @@ ComponentChar
 UnreservedChar
   = [a-zA-Z0-9\-\._~]
 
+// TODO: surrogate pairs
 PctEncodedChar
   = str:$('%' HexDigit HexDigit) { return decodeURIComponent(str) }
 
@@ -87,6 +90,8 @@ AtomicComponent
   / NumberLiteral
   / CtorComponent
   / VariableComponent
+  / RangeComponent
+  / StringRangeSuffix
   / StringLiteral
 
 
@@ -96,51 +101,86 @@ GroupedComponent 'a group'
 
 
 VariableComponent 'a template variable'
-  = '{' S* args:VariableLexical S* '}' {
+  = '{' S* args:VariableLexical S* '}'
+    {
       return serialization.VARIABLE.revive(args)
     }
 
 VariableLexical
-  = name:VariableName S* ':' S* range:VariableRange { return [ name, range ] }
+  = name:VariableName ':' range:RangeDescriptor { return [ name, range ] }
   / name:VariableName { return [ name ] }
 
 VariableName
   = '*' { return '' }
   / c:ComponentChar+ { return c.join('') }
 
-VariableRange
-  = '*' { return '' }
-  / c:ComponentChar+ { return c.join('') }
-
 
 RangeComponent 'a range'
-  = '*:' c:ComponentChar+ { return c.join('') } // TODO look up in type system
-  / '*:(' parts:RangePart+ ')' { return parts }
-  / '*' { return [ [], [] ] }
+  = '*:' range:RangeDescriptor { return range }
+  / '*' { return serialization.RANGE.revive([]) }
 
-RangePart
-  = c:ComponentChar+ ',' { return c.join('') }
-  / '*' { return [] }
+RangeDescriptor
+  = RangeTypeAlias
+  / RangeInterval
+
+RangeInterval
+  = '(' lower:RangeIntervalPart ',' upper:RangeIntervalPart ')'
+    {
+      return serialization.RANGE.revive([ lower, upper ])
+    }
+
+RangeIntervalPart
+  = x:'!'? arg:RangeIntervalArg
+    {
+      if (x) console.log('EXCLUSIVE!!!')
+      return arg
+    }
+
+RangeIntervalArg
+  = DateLiteral
+  / NumberLiteral
+  / CtorComponent
+  / RangeTypeAlias
+
+PrefixRangeComponent
+  = str:StringLiteral '*'
+    {
+      // return serialization.PREFIX_RANGE.revive([ str ])
+    }
+
+RangeTypeAlias
+  = c:ComponentChar+
+    {
+      var type = serialization.getType(c.join(''))
+      return serialization.RANGE.revive([ type ])
+    }
+
+
+StringRangeSuffix
+  = str:StringLiteral '*'
+    {
+      // return serialization.SUFFIX.revive([ str ])
+      throw new Error('String range suffix NYI')
+    }
 
 
 CtorComponent 'a constructor'
-  = alias:CtorPrefix body:(GroupedComponent / CtorLexical) {
-    var type = serialization.aliasedType(alias)
-    if (!type)
-      throw new Error('Uknown type constructor: ' + alias)
+  = alias:CtorPrefix body:(GroupedComponent / CtorLexical)
+    {
+      var type = serialization.getType(alias)
 
-    if (typeof body === 'string')
-      return type.serialization.parse(body)
+      if (typeof body === 'string')
+        return type.serialization.parse(body)
 
-    return type.serialization.revive(body)
-  }
+      return type.serialization.revive(body)
+    }
 
 CtorPrefix
   = c:CtorNameChar+ ':' { return c.join('') }
 
 CtorNameChar
   = ComponentChar
-  / '*' // allow ctor aliases to use '*' for range stuff
+  // / '*' // allow ctor aliases to use '*' for range-specific types?
 
 CtorLexical
   = c:(CtorBodyChar)* { return c.join('') }
@@ -158,7 +198,8 @@ NumberLiteral 'a number'
   = NumberHexLiteral
   / NumberOctalLiteral
   / NumberBinaryLiteral
-  / c:ComponentChar+ '+' {
+  / c:ComponentChar+ '+'
+    {
       return serialization.NUMBER.revive([ c.join('') ])
     }
 
@@ -173,7 +214,8 @@ NumberBinaryLiteral
 
 
 DateLiteral 'a date'
-  = year:DateYear rest:DateChar* '@' {
+  = year:DateYear rest:DateChar* '@'
+    {
       return serialization.DATE.revive([ year + rest.join('') ])
     }
 
@@ -186,7 +228,8 @@ DateChar
 
 
 ArrayLiteral 'an array'
-  = head:AtomicComponent tail:ArrayNextPart+ ','? {
+  = head:AtomicComponent tail:ArrayNextPart+ ','?
+    {
       tail.unshift(head)
       return tail
     }
@@ -198,7 +241,8 @@ ArrayNextPart
 
 
 ObjectLiteral 'an object'
-  = head:ObjectLexicalElement tail:ObjectNextPart+ ','? {
+  = head:ObjectLexicalElement tail:ObjectNextPart+ ','?
+    {
       tail.unshift(head)
       return tail
     }

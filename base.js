@@ -1,6 +1,7 @@
 var assert = require('assert')
 var base = require('bytewise-core/base')
 var codecs = require('bytewise-core/codecs')
+var defprop = require('defprop')
 var parser = require('./parser')
 var util = require('./util')
 var encodeComponent = util.encodeComponent
@@ -15,7 +16,7 @@ var serialization = base.serialization = {}
 //
 // registry for looking up type by constructor alias prefix during parsing
 //
-var CTOR_REGISTRY
+var TYPE_REGISTRY
 
 //
 // registry for instance checking on type during serialization
@@ -30,14 +31,18 @@ function registerType(type, key) {
   TYPE_CHECK_ORDER.push(type)
 
   //
-  // add alias to CTOR_REGISTRY if applicable
+  // add alias to type registry if applicable
   //
   var alias = serialization && serialization.alias || key
   if (alias) {
-    if (alias in CTOR_REGISTRY)
-      assert.deepEqual(type, CTOR_REGISTRY[alias], 'Duplicate ctor: ' + alias)
+    if (alias in TYPE_REGISTRY)
+      assert.deepEqual(type, TYPE_REGISTRY[alias], 'Duplicate ctor: ' + alias)
 
-    CTOR_REGISTRY[alias] = type
+    // TODO: assert alias contains only unreserved characters
+
+    TYPE_REGISTRY[alias] = type
+
+    type.serialization.alias = alias
   }
 }
 
@@ -45,7 +50,7 @@ function registerType(type, key) {
 // process base types and build serialization registries
 //
 function processTypes() {
-  CTOR_REGISTRY = {}
+  TYPE_REGISTRY = {}
   TYPE_CHECK_ORDER = []
 
   //
@@ -68,14 +73,23 @@ function processTypes() {
 //
 // look up type descriptor from constructor prefix alias
 //
-serialization.aliasedType = function (alias) {
+serialization.getType = function (alias) {
   //
   // construct and memoize serialization registry on first run
   //
-  if (!CTOR_REGISTRY)
+  if (!TYPE_REGISTRY)
     processTypes()
 
-  return CTOR_REGISTRY[alias]
+  var type = TYPE_REGISTRY[alias]
+  assert(type, 'Unknown type alias: ' + alias)
+  return type
+}
+
+//
+// return canonical alias string associated with type descriptor
+//
+serialization.getAlias = function (type) {
+  return type && type.serialization && type.serialization.alias
 }
 
 //
@@ -248,9 +262,7 @@ sorts.array.serialization = {
     return []
   },
   revive: function (args) {
-    //
-    // args are already an array
-    //
+    assert(Array.isArray(args), 'Invalid "array" structure')
     return args
   },
   stringify: function (instance, nested) {
@@ -283,6 +295,8 @@ sorts.object.serialization = {
     return {}
   },
   revive: function (args) {
+    assert(Array.isArray(args), 'Invalid "object" structure')
+
     var value = {}
     args.forEach(function (pair) {
       value[pair[0]] = pair[1]
@@ -313,28 +327,69 @@ sorts.object.serialization = {
 //
 // crappy little impl for template variable placeholders
 //
-function Variable(name, range) {
-  this.name = name || ''
-  this.range = range || ''
-}
+var VARIABLE_BRAND = {}
 
 base.variable = {
   is: function (instance) {
-    return instance instanceof Variable
+    return instance && instance.__brand === VARIABLE_BRAND
+  },
+  create: function (args) {
+    var instance = {}
+    defprop.value(instance, '__brand', VARIABLE_BRAND)
+    defprop.value(instance, 'args', args)
+    return instance
   },
   serialization: {
     revive: function (args) {
-      return new Variable(args[0], args[1])
+      return base.variable.create(args)
     },
     stringify: function (instance) {
-      var name = instance.name
-      name = name ? encodeComponent(name) : '*'
+      var id = instance.id ? encodeComponent(instance.id) : '*'
 
       var range = instance.range || ''
       if (range)
         range = ' : ' + encodeComponent(range)
 
-      return '{ ' + name + range + ' }'
+      return '{ ' + id + range + ' }'
+    }
+  }
+}
+
+//
+// crappy little impl for ranges
+//
+var RANGE_BRAND = {}
+
+base.range = {
+  is: function (instance) {
+    return instance && instance.__brand === RANGE_BRAND
+  },
+  create: function (args) {
+    var instance = {}
+    defprop.value(instance, '__brand', RANGE_BRAND)
+    defprop.value(instance, 'args', args)
+    var lower = defprop.value(instance, 'lower', args[0] || base)
+    defprop.value(instance, 'upper', args[1] || lower)
+    return instance
+  },
+  serialization: {
+    revive: function (args) {
+      return base.range.create(args)
+    },
+    stringify: function (instance) {
+      var lower = instance.lower
+      if (lower === instance.upper) {
+        if (lower === base)
+          return '*'
+
+        var alias = serialization.getAlias(lower)
+        assert(alias, 'Unable to serialize typed range')
+        return '*:' + encodeComponent(alias)
+      }
+
+      console.log(instance.args)
+
+      return '*:(' + serialize(instance.args[0]) + ',' + serialize(instance.args[1]) + ')'
     }
   }
 }
@@ -344,9 +399,10 @@ base.variable = {
 processTypes()
 
 //
-// surface default serializations for types with literal syntactic forms
+// surface default handlers for literal syntactic forms in parser
 //
-// exports.RANGE = base.sorts.range.serialization
+serialization.RANGE = base.range.serialization
+// serialization.SUFFIX = base.suffix.serialization
 serialization.VARIABLE = base.variable.serialization
 serialization.NUMBER = base.sorts.number.serialization
 serialization.DATE = base.sorts.date.serialization
