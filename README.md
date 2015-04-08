@@ -8,12 +8,15 @@ This library also embeds all of bytewise's encoding capabilities into these URIs
 
 But just because you *can* do something doesn't mean you *should*! Go ahead and use as much of `bytewise` as you need, but no more.
 
+
 ## Components
 
-Here's how various types are encoded in `bytewise-uri` strings:
+Here's how various types are encoded within `bytewise-uri` strings:
 
 ```js
-var uri = require('./')
+// a little boilerplate to simplify our examples
+
+var uri = require('bytewise-uri')
 var assert = require('assert')
 var eq = assert.strictEqual
 var deepEq = assert.deepEqual
@@ -23,9 +26,10 @@ function uriEq(uri, expected) {
 }
 ```
 
+
 ### Primitives
 
-The colon denotes a literal, and can be used to reference primitive types as literals:
+The colon denotes a type scheme, and can be used to reference primitive types as literals:
 
 ```js
 uriEq('null:', null)
@@ -45,35 +49,52 @@ You could create a `string` instance like this:
 uriEq('string:null', 'null')
 ```
 
-But this is generally unnecessary. Components which don't include reserve characters are interpreted as strings automatically:
+### Paths
+
+Paths are URIs with some notion of hierarchy:
 
 ```js
-uriEq('null', 'null')
+uriEq('/foo/bar', [ 'foo', 'bar' ])
 ```
 
-All reserved characters in string literals must be escaped:
+Path components, delimited by a `/`, are broken down into an array structure, which yields the expected sort semantics in bytewise.
+
+Components without reserved characters are parsed as strings:
 
 ```js
-uriEq('foo%2Bbar%40baz.com', 'foo+bar@baz.com')
+uriEq('/foo/null', [ 'foo', 'null' ])
 ```
 
-The string constructor syntax does have one advantage over raw string literals: a few otherwise-reserved characters can be used safely within a type constructor's lexical space:
+A type scheme can be prepended to annotate type information:
 
 ```js
-uriEq('string:foo+bar@baz.com', 'foo+bar@baz.com')
+uriEq('/foo/null:', [ 'foo', null ])
 ```
 
-But the list of safe characters is pretty small (just `+` and `@` for now) -- other reserved characters still have to be escaped:
+You could also annotate your components as strings:
 
 ```js
-uriEq('string:mailto%3Afoo+bar@baz.com', 'mailto:foo+bar@baz.com')
+uriEq('/foo/string:bar', [ 'foo', 'bar' ])
 ```
 
-But this isn't much of an improvement over the unprefixed form:
+This is generally unnecessary, but has one advantage over raw string literals as path components: a handful of otherwise-reserved characters can be used without having to be escaped:
 
 ```js
-uriEq('mailto%3Afoo%2Bbar%40baz.com', 'mailto:foo+bar@baz.com')
+uriEq('/foo/string:bar+baz@quux.com', [ 'foo', 'bar+baz@quux.com' ])
 ```
+
+With a `string:` prefix, this would look like:
+
+```js
+uriEq('/foo/bar%2Bbaz%40quux.com', [ 'foo', 'bar+baz@quux.com' ])
+```
+
+The list of reserved characters safe to use in this context is pretty small (just `+` and `@` for now) -- other reserved characters must still be escaped:
+
+```js
+uriEq('/foo/string:mailto%3Abar+baz@quux.com', [ 'foo', 'mailto:bar+baz@quux.com' ])
+```
+
 
 ### Buffers
 
@@ -119,12 +140,19 @@ But `NaN` is not available:
 assert.throws(function () { uri('number:NaN') })
 ```
 
-Number types are common enough to merit a literal syntax as a shorthand, which we accomodate with the `+` suffix:
+As path components:
 
 ```js
-uriEq('-5.2+', -5.2)
-uriEq('Infinity+', Infinity)
-uriEq('0o767+', 503)
+uriEq('/number:123', [ 123 ])
+```
+
+Numbers are common enough to merit a shorthand syntax when used in path components. Just append a `+` char to define a number literal:
+
+```js
+uriEq('/123+', [ 123 ])
+uriEq('/-5.2+', [ -5.2 ])
+uriEq('/Infinity+', [ Infinity ])
+uriEq('/0o767+', [ 503 ])
 ```
 
 ### Dates
@@ -135,82 +163,67 @@ Date constructor syntax is just ISO 8601:
 uriEq('date:2008-10-01', new Date('2008-10-01'))
 ```
 
-Date types also get a literal syntax, using the `@` suffix:
+As path components:
 
 ```js
-uriEq('2008-10-01@', new Date('2008-10-01'))
+uriEq('/date:2008-10-01', [ new Date('2008-10-01') ])
 ```
 
-Year and month shorthands can also be used:
+Date types also have a shorthand syntax when used in path components. A date literal is defined with the `@` suffix:
 
 ```js
-uriEq('2008@', new Date('2008'))
+uriEq('/2008-10-01@', [ new Date('2008-10-01') ])
+```
+
+Year and month shorthands, and other forms allowed by ISO 8601, may also be used:
+
+```js
+uriEq('/2008@', [ new Date('2008') ])
 ```
 
 ```js
-uriEq('2008-02@', new Date('2008-02'))
+uriEq('/2008-02@', [ new Date('2008-02') ])
 ```
 
 ### Arrays
 
-Arrays components are just comma-separated:
+Paths can also contain nested array compoents. Elements are comma-separated:
 
 ```js
-uriEq('foo,null:,3+', [ 'foo', null, 3 ])
+uriEq('/foo/bar,null:,3+/baz', [ 'foo', [ 'bar', null, 3 ], 'baz' ])
 ```
 
-Arrays can be nested by using parentheses for grouping:
+Arrays can be further nested by using parentheses for grouping:
 
 ```js
-uriEq('(foo,null:),3+', [ [ 'foo', null ], 3 ])
+uriEq('/(foo,null:),3+', [ [ [ 'foo', null ], 3 ] ])
 ```
 
 ### Objects
 
-Objects are just comma-separated key/value pairs. The keys and values are separated with an `=` character:
+Object components are just comma-separated key/value pairs. The keys and values are separated with an `=` character:
 
 ```js
-uriEq('foo=bar,baz=3+', { foo: 'bar', baz: 3 })
+uriEq('/foo/bar=baz,quux=3+', [ 'foo', { bar: 'baz', quux: 3 } ])
 ```
 
 Objects can contain neseted objects or arrays.
 
 ```js
 uriEq(
-  'foo=(bar=(1+,2+,3)),baz=(null:,3+)',
-  { foo: { bar: [ 1, 2, '3' ] }, baz: [ null, 3 ] }
+  '/foo=(bar=(1+,2+,3)),baz=(null:,3+)',
+  [ { foo: { bar: [ 1, 2, '3' ] }, baz: [ null, 3 ] } ]
 )
 ```
 
-Arrays can contain objects or other arrays as well:
+Arrays can contain objects as well as other arrays:
 
 ```js
 uriEq(
-  'a,(1,2,(3+,4+),(foo=bar)),b',
-  [ 'a', [ '1', '2', [ 3, 4 ], { foo: 'bar' } ], 'b' ]
+  '/a,(1,2,(3+,4+),(foo=bar)),b',
+  [ [ 'a', [ '1', '2', [ 3, 4 ], { foo: 'bar' } ], 'b' ] ]
 )
 ```
-
-
-## URI Paths
-
-When creating URIs for index keys (the primary use case of this library), deeply nesting values in this way is not recommended. The flatter the keyspace, the easier it should be to reason about. But at the very top level keys should generally be arrays, allowing a keyspace to be partitioned into subspaces that can be ranged over reliably.
-
-Top level URI "paths" are a list of `/`-separated components, serialized as arrays:
-
-```js
-uriEq('/foo/bar/123+', [ 'foo', 'bar', 123 ])
-```
-
-Each component of a path may contain any of the structures documented above (and some others). Paths referencing specific keys always start with a `/` and never end with one. These are the kinds of paths you would use to store and dereference specific records (TODO: should we call these "reference paths"?). Other kinds of paths (like those ending in `/`, or containing a `/` but not beginning with one) are supported, but don't yet have any specific semantics.
-
-Keys could be created as array components with the same `bytewise`-encoded value as some corresponding path key, i.e. these two keys are `bytewise`-identical:
-
-```js
-deepEq(uri('foo,bar,123+').encoded, uri('/foo/bar/123+').encoded)
-```
-
-In general the path form should be used when creating keys, as paths have sane rules for combinging with other paths, and resulting paths can be created without having to reencode any of reencoding of the underlying keys.
 
 
 ## Queries
