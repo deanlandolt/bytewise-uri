@@ -242,13 +242,13 @@ Interval notation is fine for defining ranges for atomic components but you run 
 
     /foo/2000/10/03
 
-    /foo/?*:(2000/07,2005/07/24*)
+    /foo/?*(2000/07,2005/07/24*)
 
 Using the query component allows us to use slashes to express these assignments more naturally without screwing up the path hierarchy.
 
 The query component is just parsed as a variadic component, so you can tack on additional items to the array if needed:
 
-    /foo/?*:(2000/07,2005/07/24*),bar,123+
+    /foo/?*(2000/07,2005/07/24*),bar,123+
 
 The path ends in a slash, which makes it more apparent that this is a scan, not a key dereference.
 
@@ -278,7 +278,7 @@ Since we also have typed literals, we can allow key lookup by number as well as 
 
 Things get more interesting when you introduce typed ranges:
 
-    uri`#/foo/*:(1+,10+)/bar`
+    uri`#/foo/*(1+,10+)/bar`
 
 The above range would have numeric sort semantics, so you can count on results coming back in the correct order:
 
@@ -289,7 +289,7 @@ The above range would have numeric sort semantics, so you can count on results c
 
 String ranges can also be used in your ranges, yielding string sort semantics:
 
-    uri`#/foo/*:(1,10)/bar`
+    uri`#/foo/*(1,10)/bar`
 
     /foo/1/bar
     /foo/10/bar
@@ -299,7 +299,7 @@ String ranges can also be used in your ranges, yielding string sort semantics:
 
 One way to think of these ranges is as generators for building keys that can be used to deference paths in the expected order. Multiple ranges can be combined to yield a cyclic permutatation over the defined ranges:
 
-    uri`#/*:(!foo,foo*)/*:(1+,10+)/bar`
+    uri`#/*(!foo,foo*)/*(1+,10+)/bar`
 
     /foo/fooa/1+/bar
     /foo/fooa/2+/bar
@@ -414,25 +414,25 @@ We could allow type annotations to specify arbitrary ranges right inline, reusin
 For example, refining a type to the range of non-negative reals, the interval `0 <= x < Infinity`, might look like this:
 
 ```js
-uri('/foo/{ someVar:(0+,!Infinity+) }')
+uri('/foo/{ someVar:*(0+,!Infinity+) }')
 ```
 
 The `!` prefix symbolizes exclusive bounds. The positive reals:
 
 ```js
-uri('/foo/{ someVar:(!0+,!Infinity+) }')
+uri('/foo/{ someVar:*(!0+,!Infinity+) }')
 ```
 
 This notation would have a sensible interpretation when used directly in URIs:
 
 ```js
-uri('/foo/*:(!0+,!Infinity+)')
+uri('/foo/*(!0+,!Infinity+)')
 ```
 
 This syntax also leave us surface area for additional arguments, like a step param:
 
 ```js
-uri('/foo/*:(0+,Infinity+,step=1000+)
+uri('/foo/*(0+,Infinity+,(step=1000+))
 ```
 
 This might partition the underlying range in a step-like fashion.
@@ -481,7 +481,7 @@ In this case, the refinement `(*,*)` is superfluous, and this could be written m
 uri('/foo/*')
 ```
 
-Whatever the form, the fact that this is not a simple key (or, a possibly inhabited *instance*), but some kind of query or type definition. These two concepts are deeply related in this syntax, just as they should be -- they are completely dual. The fact that these keys represent ranges over a keyspace is made explicit with the presence of the `*` prefix.
+Whatever the form, it should be clear that these URIs are not simple keys, but a query or type definition. These two concepts are deeply related in this syntax, just as they should be -- they are completely dual. The fact that these keys represent ranges over a keyspace is made explicit with the presence of the `*` prefix.
 
 The intent of the underlying range should be readily apparent to the reader -- legitble to humans as well as machines, and not just arbitrary "growlix" characters assembled with complex rules. The `*` operator has a coherent meaning in its various forms, and the `!` prefix operator is used only only within interval refinement forms (the parenthetical `*(x,y)` form), and only to denote exclusive bounds.
 
