@@ -66,13 +66,13 @@ uriEq('string:foo+bar@baz.com', 'foo+bar@baz.com')
 But the list of safe characters is pretty small (just `+` and `@` for now) -- other reserved characters still have to be escaped:
 
 ```js
-uriEq('string:mailto%3A%2F%2Ffoo+bar@baz.com', 'mailto://foo+bar@baz.com')
+uriEq('string:mailto%3Afoo+bar@baz.com', 'mailto:foo+bar@baz.com')
 ```
 
-This isn't much of an improvement over the unprefixed form:
+But this isn't much of an improvement over the unprefixed form:
 
 ```js
-uriEq('mailto%3A%2F%2Ffoo%2Bbar%40baz.com', 'mailto://foo+bar@baz.com')
+uriEq('mailto%3Afoo%2Bbar%40baz.com', 'mailto:foo+bar@baz.com')
 ```
 
 ### Buffers
@@ -144,7 +144,7 @@ uriEq('2008-10-01@', new Date('2008-10-01'))
 Year and month shorthands can also be used:
 
 ```js
-uriEq('2000@', new Date('2008'))
+uriEq('2008@', new Date('2008'))
 ```
 
 ```js
@@ -156,13 +156,13 @@ uriEq('2008-02@', new Date('2008-02'))
 Arrays components are just comma-separated:
 
 ```js
-uriEq('foo,null:,3+', [ [ 'foo', null, 3 ] ])
+uriEq('foo,null:,3+', [ 'foo', null, 3 ])
 ```
 
 Arrays can be nested by using parentheses for grouping:
 
 ```js
-uriEq('(foo,null:),3+', [ [ [ 'foo', null ], 3 ] ])
+uriEq('(foo,null:),3+', [ [ 'foo', null ], 3 ])
 ```
 
 ### Objects
@@ -170,7 +170,7 @@ uriEq('(foo,null:),3+', [ [ [ 'foo', null ], 3 ] ])
 Objects are just comma-separated key/value pairs. The keys and values are separated with an `=` character:
 
 ```js
-uriEq('foo=bar,baz=3+', [ { foo: 'bar', baz: 3 } ])
+uriEq('foo=bar,baz=3+', { foo: 'bar', baz: 3 })
 ```
 
 Objects can contain neseted objects or arrays.
@@ -178,7 +178,7 @@ Objects can contain neseted objects or arrays.
 ```js
 uriEq(
   'foo=(bar=(1+,2+,3)),baz=(null:,3+)',
-  [ { foo: { bar: [ 1, 2, '3' ] }, baz: [ null, 3 ] } ]
+  { foo: { bar: [ 1, 2, '3' ] }, baz: [ null, 3 ] }
 )
 ```
 
@@ -213,9 +213,94 @@ deepEq(uri('foo,bar,123+').encoded, uri('/foo/bar/123+').encoded)
 In general the path form should be used when creating keys, as paths have sane rules for combinging with other paths, and resulting paths can be created without having to reencode any of reencoding of the underlying keys.
 
 
-## Ranges
+## Queries
 
-(TODO: this is somewhat documented in the next section, but needs to be cleaned up and moved here.)
+
+## Prefix Intervals
+
+String prefix searches get a shorthand form:
+
+  /foo/200*
+
+
+## Intervals
+
+Interval notation is fine for defining ranges for atomic components but you run into trouble when you need to further refine your bounds across path components.
+
+    /foo/2000/10/03
+
+    /foo/?*:(2000/07,2005/07/24*)
+
+Using the query component allows us to use slashes to express these assignments more naturally without screwing up the path hierarchy.
+
+The query component is just parsed as a variadic component, so you can tack on additional items to the array if needed:
+
+    /foo/?*:(2000/07,2005/07/24*),bar,123+
+
+The path ends in a slash, which makes it more apparent that this is a scan, not a key dereference.
+
+
+Any valid variadic component could be included in the query:
+
+    /foo/?bar=baz,quux=123+
+
+You can get www-form-urlencoded syntax by using a map literal rather than the objet literal in the previous example:
+
+    /foo/?bar=baz&quux=123+
+
+
+## Path traversal
+
+As this a path language, we can also use the semantics to resolve paths in known objects.
+
+Our syntax give us valid json-pointer semantics out of the box:
+
+    uri`#/foo/0/bar`
+
+Any path could be used to resolve keys in this way, but using the hash prefix for paths that are strictly for this purpose denotes objects created strictly for this purposes.
+
+Since we also have typed literals, we can allow key lookup by number as well as string. Like js, both string and numeric keys could be used to deference array elements:
+
+    uri`#/foo/0+/bar`
+
+Things get more interesting when you introduce typed ranges:
+
+    uri`#/foo/*:(1+,10+)/bar`
+
+The above range would have numeric sort semantics, so you can count on results coming back in the correct order:
+
+    /foo/1/bar
+    /foo/2/bar
+    ...
+    /foo/10/bar
+
+String ranges can also be used in your ranges, yielding string sort semantics:
+
+    uri`#/foo/*:(1,10)/bar`
+
+    /foo/1/bar
+    /foo/10/bar
+    /foo/2/bar
+    ...
+    /foo/9/bar
+
+One way to think of these ranges is as generators for building keys that can be used to deference paths in the expected order. Multiple ranges can be combined to yield a cyclic permutatation over the defined ranges:
+
+    uri`#/*:(!foo,foo*)/*:(1+,10+)/bar`
+
+    /foo/fooa/1+/bar
+    /foo/fooa/2+/bar
+    ...
+    /foo/fooa/10+/bar
+    /foo/foob/1+/bar
+    /foo/foob/2+/bar
+    ...
+    /foo/foo\xff\xff/10+/bar
+    /foo/foo\xff\xff\x00/1+/bar
+    /foo/foo\xff\xff\x00/2+/bar
+    ...
+
+This isn't how the implementation would actually work, of course -- just one way to reason about the syntax and what it implies. In the case of path traversal, we can index the keyspace of our target iterating over matching keys efficiently.
 
 
 ## Templates
@@ -231,7 +316,7 @@ eq(tmpl.fill({ my$var: [ true, 'false' ] }).uri, '/foo/bar/boolean:true,false/ba
 Template variables may be unnamed:
 
 ```js
-tmpl = uri('/foo/{*},{*}/{ a }/bar')
+tmpl = uri('/foo/{ * },{ * }/{ a }/bar')
 ```
 
 All template variables (whether named or not), can be bound by position too:
@@ -245,19 +330,19 @@ Or a mix of both may be used, as shown below.
 Also note that that not all variables have to be populated at once -- any unbound variables carry over to the newly generated uri instance:
 
 ```js
-eq(tmpl.fill({ a: 'AAA', 0: null }).uri, '/foo/null:,{*}/AAA/bar')
+eq(tmpl.fill({ a: 'AAA', 0: null }).uri, '/foo/null:,{ * }/AAA/bar')
 ```
 
 Binding variables on a template returns a new URI object without mutating the source template:
 
 ```js
-eq(tmpl.uri = uri('/foo/{*},{*}/{ a }/bar')
+eq(tmpl.uri = uri('/foo/{ * },{ * }/{ a }/bar')
 ```
 
 Template variables can also be given a type annotation to constrain the range of legal values that it may be bound to. Providing out-of-bounds variable bindings results in an empty template:
 
 ```js
-tmpl = uri('/foo/{ someVar:number },baz')
+tmpl = uri('/foo/{ someVar : number },baz')
 
 eq(tmpl.fill({ someVar: 3 }).uri, '/foo/3+/baz')
 assert.equal(tmpl.fill({ someVar: '3' }), null)
@@ -348,82 +433,90 @@ In addition to controlling the boundaries of partitioning, there are also some u
 Back to key path queries, this should also do what you'd expect:
 
 ```js
-uri('/foo/*:number')
+uri('/foo/number:*')
 ```
 
-You could think of this as "desugaring" to the conceptual interval `[number.BOTTOM, number.TOP]`. But in with this syntax we wouldn't even need to add any special `top` and `bottom` types -- we could just reuse our `*:` notation:
+You could think of this as "desugaring" to the conceptual interval `[number.bound.lower, number.bound.upper]`. But in with this syntax we wouldn't even need to add any special `top:` or `bottom:` types -- we could just reuse `*` notation:
 
 ```js
-uri('/foo/*:(*:number,*:number)')
+uri('/foo/*(number:*,number:*)')
 ```
 
-On the left side of an interval `*:type` implies the very bottom of that type. On the right, the very top. In the case of `number` this would correspond to `number:-Infinity` and `number:Infinity`, respectively. But `number` is the exception, not the rule. The top side of most types is usually inaccessible as an actual value. In the case of `date`, both top and bottom are inaccessible -- there is *infinitary* date value, positive or negative.
+On the left side of an interval `number:*` implies the very bottom of the range defiend by the type. On the right, the very top. In the case of `number` this would correspond to `number:-Infinity` and `number:Infinity`, respectively. But `number` is the exception, not the rule. The top side of most types is usually inaccessible as an actual value. In the case of `date`, both top and bottom are inaccessible -- there is *infinitary* date value, positive or negative.
 
 To reference all values from, e.g. the `2000` onward, you could conjure up a far-future date, or you could just do this:
 
 ```js
-uri('/foo/*:(2000@,*:date)')
+uri('/foo/*(2000@,date:*)')
 ```
 
 And rather than having to mint special `TOP` and `BOTTOM` instances for the `any` type, we can just use the standalone `*` syntax. On the left side of an interval this means `bottom`, on the right, `top`. To range over all values from the number 0 to `TOP`:
 
 ```js
-uri('/foo/*:(0+,*)')
+uri('/foo/*(0+,*)')
 ```
 
-Ranging from `top` to `bottom` (the `any` type):
+Ranging from `any.bound.lower` to `any.bound.upper`:
 
 ```js
-uri('/foo/*:(*,*)')
+uri('/foo/*(*,*)')
 ```
 
-In this case, the `(*,*)` interval is superfluous, and this could be written more succinctly:
+In this case, the refinement `(*,*)` is superfluous, and this could be written more succinctly:
 
 ```js
 uri('/foo/*')
 ```
 
-In whatever form, the fact that this is not a simple key (or, a possibly inhabited *instance*), but some kind of query or type definition (these two concepts are deeply related in this syntax, just as they should be -- they are completely equivalent). This is made explicit with the `*` prefix present in these various forms. The intent of the underlying range should be readily apparent to the reader -- readable by humans as well as machines, not just arbitrary "growlix" characters assembled with complex rules. The `*` operator has a coherent meaning in its various forms, and the `!` prefix operator is used only only within interval literals (the parenthetical `*:(x,y)` form), and only to denote exclusive interval bounds.
+Whatever the form, the fact that this is not a simple key (or, a possibly inhabited *instance*), but some kind of query or type definition. These two concepts are deeply related in this syntax, just as they should be -- they are completely dual. The fact that these keys represent ranges over a keyspace is made explicit with the presence of the `*` prefix.
+
+The intent of the underlying range should be readily apparent to the reader -- legitble to humans as well as machines, and not just arbitrary "growlix" characters assembled with complex rules. The `*` operator has a coherent meaning in its various forms, and the `!` prefix operator is used only only within interval refinement forms (the parenthetical `*(x,y)` form), and only to denote exclusive bounds.
 
 Coming full circle, back to templates -- an unnamed template variable, number-typed, might look like this:
 
 ```js
-uri('/foo/{ *:number }')
+uri('/foo/{ * : number }')
 ```
 
 An unnamed, untyped template variable:
 
 ```js
-uri('/foo/{ *:* }')
+uri('/foo/{ * : * }')
 ```
 
-Which could be shortened to:
+The any type is the default, so this could be shortened to:
 
 ```js
 uri('/foo/{ * }')
 ```
 
-Conceptually, the leading `*` represents an unnamed variable. Naming the variable just involves replaces the leading `*` with a string representing the name:
+The leading `*` represents an unnamed variable. Naming the variable just involves replaces the leading `*` with a string representing the name:
 
 ```js
-uri('/foo/{ someVar:date }')
+uri('/foo/{ someVar : date }')
 ```
 
 A named variable with the `any`-type:
 
 ```js
-uri('/foo/{ someVar:* }')
+uri('/foo/{ someVarv : * }')
 ```
 
-Again, this could be shortened to:
+Again, the any type is implied so this could be shortened to:
 
 ```js
 uri('/foo/{ someVar }')
 ```
 
-It all hangs together nicely. Queries are type defs and vice versa. Defining a template variable just punches a "hole" in the underlying data structure.
+You can even define refined intervals for your variable's type. For instance, to define a value space representing the positive real numbers:
 
-In a more formal sense, a template with one variable could be thought of as the first derivative of fully inhabited instances. Templates with two holes are the second-derivative of fully inhabited instances, or the first derivative of any instances with one of its two holes inhabited. As insane as this may sound, [it's true](http://blog.lab49.com/archives/3011).
+A named variable with the `any`-type:
+
+```js
+uri('/foo/{ someVarv : *(!0+,!Infinity*) }')
+```
+
+It all hangs together pretty well. Queries are type defs and vice versa. Defining a template variable just punches a "hole" in the underlying data structure. We can efficiently type check, and even determine subtype relationships, with a few buffer comparisons.
 
 
 ## Template strings
@@ -471,6 +564,13 @@ data = { foo: true, baz: [ '', {}, 0, { a: 1 } ], bar: '0' }
 key = uri`/${ data }/s`
 eq(key.uri, '/foo=boolean:true,baz=(string:,0+,object:,(a=1)),bar=0')
 deepEq(key.data, data)
+```
+
+You can use a string interpolation to create a template variable, and get escapement for free:
+
+```js
+tmpl = uri('/foo/bar/${ uri.types.variable('my$var') }/baz/quux'))
+eq(tmpl.fill({ my$var: 123 }).uri, '/foo/bar/123+/baz/quux')
 ```
 
 String template interpolations are escaped using the underlying templating functionality of the system. As part of the interpolation process, an intermediate template is created with specially-keyed variables. This ensures that template interpolations may only represent atomic components -- they can't span across multiple components and accidentally "jump" the namespace, which eliminates potential injection attacks.
