@@ -65,6 +65,9 @@ Uri.data = function (data, pathType) {
   return new Uri(PRIVATE_SIGIL, data, pathType)
 }
 
+Uri.encode = bytewise.encode
+Uri.decode = bytewise.decode
+
 var proto = Uri.prototype
 
 //
@@ -79,18 +82,11 @@ defprop.memoize(proto, 'hasKey', function () {
 //
 defprop.memoize(proto, 'key', function () {
   // TODO: keep generated buffer private and return a copy on each call
-  return this.hasKey ? bytewise.encode(this.data) : null
+  return this.hasKey ? Uri.encode(this.data) : null
 })
 
 defprop.memoize(proto, 'uri', function () {
   return base.serialization.stringify(this.data, this.pathType)
-})
-
-//
-// default to hex to preserve order in case of accidental string coercion
-//
-defprop.value(proto, 'toString', function (codec) {
-  return this.key.toString(codec || 'hex')
 })
 
 //
@@ -105,12 +101,18 @@ defprop.value(proto, 'fill', function () {
 //
 // query descriptor object defined by uri
 //
-defprop.value(proto, 'query', function () {
+defprop.memoize(proto, 'query', function () {
   //
   // if type has an associated key, return singleton interval
   //
   if (this.hasKey)
-    return { gte: this, lte: this }
+    return { gte: this.key, lte: this.key }
+
+  if (this.pathType === 'prefix')
+    return {
+      gte: Uri.encode(this.data.concat(null)),
+      lte: Uri.encode(this.data.concat(undefined))
+    }
 
   // TODO: templates and ranges
 })
