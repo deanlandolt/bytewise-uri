@@ -6,7 +6,7 @@ require('./serialization')
 function uriEq(uri, expected) {
   var key = path(uri)
   assert.deepEqual(key.data, expected)
-  assert.equal(key + '', bytewise.encode(expected) + '')
+  assert.equal(key.encoding + '', bytewise.encode(expected) + '')
 }
 
 //

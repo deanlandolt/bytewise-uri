@@ -65,24 +65,31 @@ Uri.data = function (data, pathType) {
   return new Uri(PRIVATE_SIGIL, data, pathType)
 }
 
-Uri.encode = bytewise.encode
-Uri.decode = bytewise.decode
+Uri.bytewise = bytewise
+
+Uri.encode = function (input) {
+  return (new Uri(input)).encoding
+}
+
+Uri.decode = function (buffer) {
+  return Uri.data(bytewise.decode(buffer));
+}
 
 var proto = Uri.prototype
 
 //
-// a key value  can only be generated for non-index types w/o range quantifiers
+// resolves the key associated with instance, if it has a key encoding
 //
-defprop.memoize(proto, 'hasKey', function () {
-  return typeof this.pathType === 'boolean' && !this.variables && !this.ranges
+defprop.memoize(proto, 'encoding', function () {
+  // TODO: keep generated buffer private and return a copy on each call
+  return this.keyed ? bytewise.encode(this.data) : null
 })
 
 //
-// resolves the key associated with instance, if its type if it's not a range
+// a key value can only be generated for non-index types w/o range quantifiers
 //
-defprop.memoize(proto, 'key', function () {
-  // TODO: keep generated buffer private and return a copy on each call
-  return this.hasKey ? Uri.encode(this.data) : null
+defprop.memoize(proto, 'keyed', function () {
+  return typeof this.pathType === 'boolean' && !this.variables && !this.ranges
 })
 
 defprop.memoize(proto, 'uri', function () {
@@ -105,8 +112,8 @@ defprop.memoize(proto, 'query', function () {
   //
   // if type has an associated key, return singleton interval
   //
-  if (this.hasKey)
-    return { gte: this.key, lte: this.key }
+  if (this.keyed)
+    return { gte: this.encoding, lte: this.encoding }
 
   if (this.pathType === 'prefix')
     return {
