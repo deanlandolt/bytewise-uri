@@ -274,6 +274,7 @@ sorts.array.serialization = {
   }
 }
 
+sorts.object || (sorts.object = {})
 sorts.object.serialization = {
   parse: function (string) {
     //

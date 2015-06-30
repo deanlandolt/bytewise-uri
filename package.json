@@ -3,13 +3,6 @@
   "version": "0.2.0-pre",
   "description": "URI encoding scheme for bytewise key paths",
   "main": "index.js",
-  "dependencies": {
-    "bytewise-core": "1.0.0",
-    "defprop": "^0.1.0"
-  },
-  "devDependencies": {
-    "pegjs": "^0.8.0"
-  },
   "scripts": {
     "test": "node test",
     "build-parser": "node_modules/.bin/pegjs parser.pegjs"
@@ -30,6 +23,12 @@
   "bugs": {
     "url": "https://github.com/deanlandolt/bytewise-uri/issues"
   },
-  "homepage": "https://github.com/deanlandolt/bytewise-uri",
-  "readmeFilename": "README.md"
+  "homepage": "https://github.com/deanlandolt/bytewise-uri#readme",
+  "dependencies": {
+    "bytewise-core": "^1.2.3",
+    "defprop": "^0.1.0"
+  },
+  "devDependencies": {
+    "pegjs": "^0.8.0"
+  }
 }
