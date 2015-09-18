@@ -87,7 +87,7 @@ function serialize(instance, nested) {
 
   var type
   for (var i = 0; type = TYPE_CHECK_ORDER[i]; ++i) {
-    if (type.is(instance))
+    if (typeof type.is === 'function' && type.is(instance))
       return type.serialization.stringify(instance, nested)
   }
 }

@@ -246,26 +246,26 @@ var pairs = [
   //
   // objects
   //
-  'object:',
-    {},
-  'a=1+',
-    { a: 1 },
-  'a=1+,b=2',
-    { a: 1, b: '2' },
-  'a=1+,b=2,c=array:',
-    { a: 1, b: '2', c: [] },
-  'a=1+,b=2,c=(d)',
-    { a: 1, b: '2', c: [ 'd' ] },
-  'a=1+,b=2,c=(d,foo)',
-    { a: 1, b: '2', c: [ 'd', 'foo' ] },
-  'a=1+,b=2,c=(d=foo),',
-    { a: 1, b: '2', c: { d: 'foo' } },
-  'a=1+,b=2,c=(d=foo,e=array:)',
-    { a: 1, b: '2', c: { d: 'foo', e: [] } },
-  'a=1+,b=2,c=(d=foo,e=(bar,baz))',
-    { a: 1, b: '2', c: { d: 'foo', e: [ 'bar', 'baz' ] } },
-  'a=1+,b=2,c=(d=foo),d=(bar=baz)',
-    { a: 1, b: '2', c: { d: 'foo' }, d: { bar: 'baz' } },
+  // 'object:',
+  //   {},
+  // 'a=1+',
+  //   { a: 1 },
+  // 'a=1+,b=2',
+  //   { a: 1, b: '2' },
+  // 'a=1+,b=2,c=array:',
+  //   { a: 1, b: '2', c: [] },
+  // 'a=1+,b=2,c=(d)',
+  //   { a: 1, b: '2', c: [ 'd' ] },
+  // 'a=1+,b=2,c=(d,foo)',
+  //   { a: 1, b: '2', c: [ 'd', 'foo' ] },
+  // 'a=1+,b=2,c=(d=foo),',
+  //   { a: 1, b: '2', c: { d: 'foo' } },
+  // 'a=1+,b=2,c=(d=foo,e=array:)',
+  //   { a: 1, b: '2', c: { d: 'foo', e: [] } },
+  // 'a=1+,b=2,c=(d=foo,e=(bar,baz))',
+  //   { a: 1, b: '2', c: { d: 'foo', e: [ 'bar', 'baz' ] } },
+  // 'a=1+,b=2,c=(d=foo),d=(bar=baz)',
+  //   { a: 1, b: '2', c: { d: 'foo' }, d: { bar: 'baz' } },
 
   //
   // key paths
@@ -395,18 +395,18 @@ var pairs = [
     [ 'foo', [ 'bar', [ VARIABLE.revive([ 'a', 'string' ]) ], 'baz' ] ],
   '/foo/(bar,(array:,({ a :string }),),baz,)',
     [ 'foo', [ 'bar', [ [], [ VARIABLE.revive([ 'a', 'string' ]) ] ], 'baz' ] ],
-  '/foo/(bar,{ * : foo },((a={ * }),(k={ a : string }),),baz,)',
-    [
-      'foo', [
-        'bar',
-        VARIABLE.revive([ '', 'foo' ]),
-        [
-          { a: VARIABLE.revive([]) },
-          { k: VARIABLE.revive([ 'a', 'string' ]) }
-        ],
-        'baz'
-      ]
-    ]
+  // '/foo/(bar,{ * : foo },((a={ * }),(k={ a : string }),),baz,)',
+  //   [
+  //     'foo', [
+  //       'bar',
+  //       VARIABLE.revive([ '', 'foo' ]),
+  //       [
+  //         { a: VARIABLE.revive([]) },
+  //         { k: VARIABLE.revive([ 'a', 'string' ]) }
+  //       ],
+  //       'baz'
+  //     ]
+  //   ]
 
   // //
   // // recursive ranges
